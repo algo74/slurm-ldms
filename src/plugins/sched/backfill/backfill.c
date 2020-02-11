@@ -1481,6 +1481,9 @@ static bool _job_exceeds_max_bf_param(job_record_t *job_ptr,
 	return false;
 }
 
+
+/*AG This is the main part of the backfill thread job */
+
 static int _attempt_backfill(void)
 {
 	DEF_TIMERS;

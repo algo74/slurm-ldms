@@ -61,6 +61,7 @@ static pthread_mutex_t license_mutex = PTHREAD_MUTEX_INITIALIZER;
 static void _pack_license(struct licenses *lic, Buf buffer, uint16_t protocol_version);
 
 /* Print all licenses on a list */
+/*AG may need to update */
 static void _licenses_print(char *header, List licenses, job_record_t *job_ptr)
 {
 	ListIterator iter;
@@ -221,6 +222,7 @@ static void _add_res_rec_2_lic_list(slurmdb_res_rec_t *rec, bool sync)
 }
 
 /* Get string of used license information. Caller must xfree return value */
+/*AG may need to update to show real usage */
 extern char *get_licenses_used(void)
 {
 	char *licenses_used = NULL;
@@ -269,57 +271,58 @@ extern int license_init(char *licenses)
  * Remove all previously allocated licenses */
 extern int license_update(char *licenses)
 {
-        ListIterator iter;
-        licenses_t *license_entry, *match;
-        List new_list;
-        bool valid = true;
+    ListIterator iter;
+    licenses_t *license_entry, *match;
+    List new_list;
+    bool valid = true;
 
-        new_list = _build_license_list(licenses, &valid);
-        if (!valid)
-                fatal("Invalid configured licenses: %s", licenses);
+    new_list = _build_license_list(licenses, &valid);
+    if (!valid)
+            fatal("Invalid configured licenses: %s", licenses);
 
-        slurm_mutex_lock(&license_mutex);
-        if (!license_list) {        /* no licenses before now */
-                license_list = new_list;
-                slurm_mutex_unlock(&license_mutex);
-                return SLURM_SUCCESS;
-        }
+    slurm_mutex_lock(&license_mutex);
+    if (!license_list) {        /* no licenses before now */
+            license_list = new_list;
+            slurm_mutex_unlock(&license_mutex);
+            return SLURM_SUCCESS;
+    }
 
-        iter = list_iterator_create(license_list);
-        while ((license_entry = list_next(iter))) {
+    iter = list_iterator_create(license_list);
+    while ((license_entry = list_next(iter))) {
 		/* Always add the remote ones, since we handle those
 		   else where. */
-		if (license_entry->remote) {
-			list_remove(iter);
-			if (!new_list)
-				new_list = list_create(license_free_rec);
-			license_entry->used = 0;
-			list_append(new_list, license_entry);
-			continue;
-		}
-		if (new_list)
-			match = list_find_first(new_list, _license_find_rec,
-						license_entry->name);
-		else
-			match = NULL;
+      if (license_entry->remote) {
+        list_remove(iter);
+        if (!new_list)
+          new_list = list_create(license_free_rec);
+        /*AG update here */
+        license_entry->used = 0;
+        list_append(new_list, license_entry);
+        continue;
+      }
+      if (new_list)
+        match = list_find_first(new_list, _license_find_rec,
+              license_entry->name);
+      else
+        match = NULL;
 
-                if (!match) {
-                        info("license %s removed with %u in use",
-                             license_entry->name, license_entry->used);
-                } else {
-                        if (license_entry->used > match->total) {
-                                info("license %s count decreased",
-                                     match->name);
-                        }
-                }
+      if (!match) {
+        info("license %s removed with %u in use",
+             license_entry->name, license_entry->used);
+      } else {
+        if (license_entry->used > match->total) {
+                info("license %s count decreased",
+                     match->name);
         }
-        list_iterator_destroy(iter);
+      }
+    }
+    list_iterator_destroy(iter);
 
-        FREE_NULL_LIST(license_list);
-        license_list = new_list;
-        _licenses_print("update_license", license_list, NULL);
-        slurm_mutex_unlock(&license_mutex);
-        return SLURM_SUCCESS;
+    FREE_NULL_LIST(license_list);
+    license_list = new_list;
+    _licenses_print("update_license", license_list, NULL);
+    slurm_mutex_unlock(&license_mutex);
+    return SLURM_SUCCESS;
 }
 
 extern void license_add_remote(slurmdb_res_rec_t *rec)
@@ -615,6 +618,7 @@ extern void license_job_merge(job_record_t *job_ptr)
  * IN reboot    - true if node reboot required to start job
  * RET: SLURM_SUCCESS, EAGAIN (not available now), SLURM_ERROR (never runnable)
  */
+ /*AG may need to change in order to enable checking of "remote" usage */
 extern int license_job_test(job_record_t *job_ptr, time_t when, bool reboot)
 {
 	ListIterator iter;
@@ -959,6 +963,7 @@ extern void license_set_job_tres_cnt(List license_list,
  *	uint8_t 	remote;
  *
  */
+ /*AG may need to update */
 static void
 _pack_license(struct licenses *lic, Buf buffer, uint16_t protocol_version)
 {

@@ -2,6 +2,10 @@
 .codelite
 *.project
 *.workspace
+.cproject
+.settings
+_ag*
+src/api/full_version.map
 
 # original 
 *.o
