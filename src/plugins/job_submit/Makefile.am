@@ -6,6 +6,7 @@ SUBDIRS = \
 	defaults \
 	logging \
 	lua \
+	lustre_util \
 	partition \
 	pbs \
 	require_timelimit \

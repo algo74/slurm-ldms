@@ -509,6 +509,7 @@ AC_CONFIG_FILES([Makefile
 		 src/plugins/job_submit/defaults/Makefile
 		 src/plugins/job_submit/logging/Makefile
 		 src/plugins/job_submit/lua/Makefile
+		 src/plugins/job_submit/lustre_util/Makefile
 		 src/plugins/job_submit/partition/Makefile
 		 src/plugins/job_submit/pbs/Makefile
 		 src/plugins/job_submit/require_timelimit/Makefile
