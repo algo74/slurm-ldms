@@ -61,7 +61,6 @@ static pthread_mutex_t license_mutex = PTHREAD_MUTEX_INITIALIZER;
 static void _pack_license(struct licenses *lic, Buf buffer, uint16_t protocol_version);
 
 /* Print all licenses on a list */
-/*AG may need to update */
 static void _licenses_print(char *header, List licenses, job_record_t *job_ptr)
 {
 	ListIterator iter;
@@ -75,13 +74,13 @@ static void _licenses_print(char *header, List licenses, job_record_t *job_ptr)
 	iter = list_iterator_create(licenses);
   	while ((license_entry = list_next(iter))) {
 		if (!job_ptr) {
-			info("licenses: %s=%s total=%u used=%u",
+			info("licenses: %s=%s total=%u used=%u r_used=%u",
 			     header, license_entry->name,
-			     license_entry->total, license_entry->used);
+			     license_entry->total, license_entry->used, license_entry->r_used); /*AG updated */
 		} else {
-			info("licenses: %s=%s %pJ available=%u used=%u",
+			info("licenses: %s=%s %pJ available=%u used=%u r_used=%u",
 			     header, license_entry->name, job_ptr,
-			     license_entry->total, license_entry->used);
+			     license_entry->total, license_entry->used, license_entry->r_used); /*AG updated */
 		}
 	}
 	list_iterator_destroy(iter);
@@ -222,7 +221,6 @@ static void _add_res_rec_2_lic_list(slurmdb_res_rec_t *rec, bool sync)
 }
 
 /* Get string of used license information. Caller must xfree return value */
-/*AG may need to update to show real usage */
 extern char *get_licenses_used(void)
 {
 	char *licenses_used = NULL;
@@ -235,9 +233,9 @@ extern char *get_licenses_used(void)
 		while ((license_entry = list_next(iter))) {
 			if (licenses_used)
 				xstrcat(licenses_used, ",");
-			xstrfmtcat(licenses_used, "%s:%u/%u",
+			xstrfmtcat(licenses_used, "%s:%u(%u)/%u",
 			           license_entry->name, license_entry->used,
-			           license_entry->total);
+			           license_entry->r_used, license_entry->total); /*AG updated */
 		}
 		list_iterator_destroy(iter);
 	}
@@ -295,8 +293,9 @@ extern int license_update(char *licenses)
         list_remove(iter);
         if (!new_list)
           new_list = list_create(license_free_rec);
-        /*AG update here */
+        
         license_entry->used = 0;
+        license_entry->r_used = 0; /*AG updated */
         list_append(new_list, license_entry);
         continue;
       }
@@ -643,9 +642,11 @@ extern int license_job_test(job_record_t *job_ptr, time_t when, bool reboot)
 			     job_ptr->job_id, match->name);
 			rc = SLURM_ERROR;
 			break;
-		} else if ((license_entry->total + match->used) >
-			   match->total) {
+		} else if ((license_entry->total + match->used) > match->total
+       || (license_entry->total + match->r_used) > match->total) { /*AG update */
 			rc = EAGAIN;
+      debug3("job %u wants %u of %u %s licenses, %u already reserved, %u currently used", 
+           job_ptr->job_id, license_entry->total, match->total, match->name, match->used, match->r_used);
 			break;
 		} else {
 			/* Assume node reboot required since we have not
@@ -653,10 +654,12 @@ extern int license_job_test(job_record_t *job_ptr, time_t when, bool reboot)
 			resv_licenses = job_test_lic_resv(job_ptr,
 							  license_entry->name,
 							  when, reboot);
-			if ((license_entry->total + match->used +
-			     resv_licenses) > match->total) {
+			if ((license_entry->total + match->used + resv_licenses) > match->total
+			    || (license_entry->total + match->r_used + resv_licenses) > match->total) { /*AG update */
 				rc = EAGAIN;
-				break;
+				debug3("job %u wants %u of %u %s licenses, %u already reserved, %u currently used, %u not allowed",
+             job_ptr->job_id, license_entry->total, match->total, match->name, match->used, match->r_used, resv_licenses);
+        break;
 			}
 		}
 	}
@@ -715,6 +718,7 @@ extern int license_job_get(job_record_t *job_ptr)
 		if (match) {
 			match->used += license_entry->total;
 			license_entry->used += license_entry->total;
+			match->r_used += license_entry->total; /*AG temporary update to prevent overbooking */
 		} else {
 			error("could not find license %s for job %u",
 			      license_entry->name, job_ptr->job_id);
@@ -757,6 +761,7 @@ extern int license_job_return(job_record_t *job_ptr)
 				match->used = 0;
 				rc = SLURM_ERROR;
 			}
+			/*AG may need to temporary update r_used */
 			license_entry->used = 0;
 		} else {
 			/* This can happen after a reconfiguration */
