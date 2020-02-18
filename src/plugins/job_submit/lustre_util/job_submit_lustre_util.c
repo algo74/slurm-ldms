@@ -33,10 +33,14 @@
  *  with Slurm; if not, write to the Free Software Foundation, Inc.,
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA.
 \*****************************************************************************/
+#include <pthread.h>
+
 #include <slurm/slurm.h>
 #include <slurm/slurm_errno.h>
 
 #include "src/slurmctld/slurmctld.h"
+
+#include "remote_metrics.h"
 
 /*
  * These variables are required by the generic plugin interface.  If they
@@ -64,20 +68,43 @@
  * (major.minor.micro combined into a single number).
  */
 
-const char plugin_name[] = "Require time limit jobsubmit plugin";
+const char plugin_name[] = "Rough lustre utilization plugin";
 const char plugin_type[] = "job_submit/lustre_util";
 const uint32_t plugin_version = SLURM_VERSION_NUMBER;
+
+static pthread_t remote_metrics_thread = 0;
+static pthread_mutex_t lustre_util_thread_flag_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int init( void )
 {
 
-  debug2( "=========== Lustre utilization plugin started ================" );
+  debug2( "=========== Lustre utilization plugin starting ================" );
+
+  slurm_mutex_lock( &lustre_util_thread_flag_mutex );
+  if ( remote_metrics_thread ) {
+    debug2( "Remote metrics thread already running, not starting another" );
+    slurm_mutex_unlock( &lustre_util_thread_flag_mutex );
+    return SLURM_ERROR;
+  }
+
+  /* since we do a join on this later we don't make it detached */
+  slurm_thread_create(&remote_metrics_thread, remote_metrics_agent, NULL);
+
+  slurm_mutex_unlock( &lustre_util_thread_flag_mutex );
 
   return SLURM_SUCCESS;
 }
 
 void fini( void )
 {
+  slurm_mutex_lock( &lustre_util_thread_flag_mutex );
+  if ( remote_metrics_thread ) {
+    verbose( "Lustre utilization plugin shutting down" );
+    stop_remote_metrics_agent();
+    pthread_join(remote_metrics_thread, NULL);
+    remote_metrics_thread = 0;
+  }
+  slurm_mutex_unlock( &lustre_util_thread_flag_mutex );
   debug2( "=========== Lustre utilization plugin finished ================" );
 }
 

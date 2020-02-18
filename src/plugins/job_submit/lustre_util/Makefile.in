@@ -175,7 +175,8 @@ am__uninstall_files_from_dir = { \
 am__installdirs = "$(DESTDIR)$(pkglibdir)"
 LTLIBRARIES = $(pkglib_LTLIBRARIES)
 job_submit_lustre_util_la_LIBADD =
-am_job_submit_lustre_util_la_OBJECTS = job_submit_lustre_util.lo
+am_job_submit_lustre_util_la_OBJECTS = job_submit_lustre_util.lo \
+	remote_metrics.lo
 job_submit_lustre_util_la_OBJECTS =  \
 	$(am_job_submit_lustre_util_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -504,7 +505,10 @@ AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/src/common
 pkglib_LTLIBRARIES = job_submit_lustre_util.la
 
 # Job submit plugin.
-job_submit_lustre_util_la_SOURCES = job_submit_lustre_util.c
+job_submit_lustre_util_la_SOURCES = job_submit_lustre_util.c \
+																		remote_metrics.h \
+																		remote_metrics.c
+
 job_submit_lustre_util_la_LDFLAGS = $(PLUGIN_FLAGS)
 all: all-am
 
@@ -585,6 +589,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/job_submit_lustre_util.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/remote_metrics.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

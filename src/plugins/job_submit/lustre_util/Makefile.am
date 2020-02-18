@@ -9,5 +9,7 @@ AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/src/common
 pkglib_LTLIBRARIES = job_submit_lustre_util.la
 
 # Job submit plugin.
-job_submit_lustre_util_la_SOURCES = job_submit_lustre_util.c
+job_submit_lustre_util_la_SOURCES = job_submit_lustre_util.c \
+																		remote_metrics.h \
+																		remote_metrics.c
 job_submit_lustre_util_la_LDFLAGS = $(PLUGIN_FLAGS)
