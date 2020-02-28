@@ -1347,6 +1347,7 @@ static int _schedule(uint32_t job_limit)
 	 * In both cases, we test each partition associated with the job.
 	 */
 	if (fifo_sched) {
+	  sched_debug("FIFO scheduler");
 		slurmctld_diag_stats.schedule_queue_len = list_count(job_list);
 		job_iterator = list_iterator_create(job_list);
 	} else {
@@ -1691,7 +1692,9 @@ next_task:
 				     job_state_string(job_ptr->job_state),
 				     job_reason_string(job_ptr->state_reason),
 				     job_ptr->priority);
-			continue;
+			//continue;
+			sched_debug("Finishing scheduling");
+			break; /*AG */
 		}
 
 		if (assoc_mgr_validate_assoc_id(acct_db_conn,

@@ -95,6 +95,7 @@
 #include "src/slurmctld/slurmctld.h"
 #include "src/slurmctld/srun_comm.h"
 #include "backfill.h"
+#include "backfill_licenses.h"
 
 #define BACKFILL_INTERVAL	30
 #define BACKFILL_RESOLUTION	60
@@ -176,7 +177,7 @@ static pthread_mutex_t term_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  term_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t config_lock = PTHREAD_MUTEX_INITIALIZER;
 static bool config_flag = false;
-static uint64_t debug_flags = 0;
+static uint64_t debug_flags = ~0;
 static int backfill_interval = BACKFILL_INTERVAL;
 static int bf_max_time = BACKFILL_INTERVAL;
 static int backfill_resolution = BACKFILL_RESOLUTION;
@@ -409,6 +410,8 @@ static int  _try_sched(job_record_t *job_ptr, bitstr_t **avail_bitmap,
 		tmp_bitmap = bit_copy(*avail_bitmap);
 		feat_iter = list_iterator_create(feature_cache);
 		while ((feat_ptr = (job_feature_t *) list_next(feat_iter))) {
+		  debug3("_try_shed: feature %s.",
+		                         feat_ptr->name);
 			detail_ptr->feature_list =
 				list_create(feature_list_delete);
 			feature_base = xmalloc(sizeof(job_feature_t));
@@ -572,7 +575,8 @@ static int  _try_sched(job_record_t *job_ptr, bitstr_t **avail_bitmap,
 				       preemptee_candidates,
 				       NULL,
 				       exc_core_bitmap);
-
+		debug3("_try_sched(577): select_g_job_test for %pJ returned %d.",
+		                       job_ptr, rc);
 		job_ptr->details->share_res = orig_shared;
 
 		if (((rc != SLURM_SUCCESS) || (job_ptr->start_time > now)) &&
@@ -585,6 +589,8 @@ static int  _try_sched(job_record_t *job_ptr, bitstr_t **avail_bitmap,
 					       preemptee_candidates,
 					       NULL,
 					       exc_core_bitmap);
+			debug3("_try_sched(585): select_g_job_test for %pJ returned %d.",
+			                           job_ptr, rc);
 		} else
 			FREE_NULL_BITMAP(tmp_bitmap);
 	}
@@ -636,7 +642,7 @@ static void _load_config(void)
 	char *sched_params, *tmp_ptr;
 
 	sched_params = slurm_get_sched_params();
-	debug_flags  = slurm_get_debug_flags();
+	debug_flags  = ~0 /*slurm_get_debug_flags()*/;
 
 	if ((tmp_ptr = xstrcasestr(sched_params, "bf_interval="))) {
 		backfill_interval = atoi(tmp_ptr + 12);
@@ -1501,6 +1507,10 @@ static int _attempt_backfill(void)
 	bitstr_t *exc_core_bitmap = NULL, *resv_bitmap = NULL;
 	time_t now, sched_start, later_start, start_res, resv_end, window_end;
 	time_t pack_time, orig_sched_start, orig_start_time = (time_t) 0;
+  /*AG
+   * node_space is a structure that should keep track of available nodes
+   * based on starting/finishing nodes
+   */
 	node_space_map_t *node_space;
 	struct timeval bf_time1, bf_time2;
 	int rc = 0, error_code;
@@ -1581,6 +1591,7 @@ static int _attempt_backfill(void)
 	window_end = sched_start + backfill_window;
 	node_space[0].end_time = window_end;
 
+// avail_node_bitmaps seems to not include already scheduled nodes
 	node_space[0].avail_bitmap = bit_copy(avail_node_bitmap);
 	/* Make "resuming" nodes available to be scheduled in backfill */
 	bit_or(node_space[0].avail_bitmap, rs_node_bitmap);
@@ -1602,6 +1613,10 @@ static int _attempt_backfill(void)
 	/* Ignore nodes that have been set as available during this cycle. */
 	bit_clear_all(bf_ignore_node_bitmap);
 
+	lic_tracker_p lt = init_lic_tracker(backfill_resolution);
+	dump_lic_tracker(lt);
+
+// main cycle
 	while (1) {
 		uint32_t bf_array_task_id, bf_job_priority,
 			prio_reserve;
@@ -1612,6 +1627,7 @@ static int _attempt_backfill(void)
 			job_resv_clear_promiscous_flag(job_ptr);
 			fill_array_reasons(job_ptr, reject_array_job);
 		}
+
 		job_queue_rec = (job_queue_rec_t *) list_pop(job_queue);
 		if (!job_queue_rec) {
 			if (debug_flags & DEBUG_FLAG_BACKFILL)
@@ -1619,6 +1635,7 @@ static int _attempt_backfill(void)
 			break;
 		}
 
+// job_ptr it the pointer to the current job
 		job_ptr          = job_queue_rec->job_ptr;
 		part_ptr         = job_queue_rec->part_ptr;
 		bf_job_priority  = job_queue_rec->priority;
@@ -1732,6 +1749,7 @@ static int _attempt_backfill(void)
 			}
 		}
 
+// QOS logic and other checks
 		if (job_ptr->qos_id) {
 			assoc_mgr_lock_t locks = {
 				READ_LOCK, NO_LOCK, READ_LOCK, NO_LOCK,
@@ -1841,6 +1859,7 @@ static int _attempt_backfill(void)
 		if (tmp_preempt_in_progress)
 			continue; 	/* scheduled in another partition */
 
+// save original start time and limit
 		orig_start_time = job_ptr->start_time;
 		orig_time_limit = job_ptr->time_limit;
 
@@ -1908,14 +1927,17 @@ next_task:
 			continue;
 		}
 
-		if ((!job_independent(job_ptr)) ||
+		/*AG TODO: reimplement licenses properly */
+// if not enough licenses are currently available for the job, the job is simply skipped
+		if ((!job_independent(job_ptr)) /* ||
 		    (license_job_test(job_ptr, time(NULL), true) !=
-		     SLURM_SUCCESS)) {
+		     SLURM_SUCCESS) */) {
 			if (debug_flags & DEBUG_FLAG_BACKFILL)
 				info("backfill: %pJ not runable now", job_ptr);
 			continue;
 		}
 
+// calculating min_nodes and max_nodes - number of nodes for the job
 		/* Determine minimum and maximum node counts */
 		error_code = get_node_cnts(job_ptr, qos_flags, part_ptr,
 					   &min_nodes, &req_nodes, &max_nodes);
@@ -2058,21 +2080,51 @@ next_task:
 			job_ptr->part_ptr = part_ptr;
 		}
 
-		FREE_NULL_BITMAP(avail_bitmap);
-		FREE_NULL_BITMAP(exc_core_bitmap);
+
 		start_res = MAX(later_start, pack_time);
 		resv_end = 0;
 		later_start = 0;
+
+// testing if the job have reservation,
+// and when the job can start based on the reservations
 		/* Determine impact of any advance reservations */
-		j = job_test_resv(job_ptr, &start_res, true, &avail_bitmap,
-				  &exc_core_bitmap, &resv_overlap, false);
-		if (j != SLURM_SUCCESS) {
-			if (debug_flags & DEBUG_FLAG_BACKFILL)
-				info("backfill: %pJ reservation defer",
-				     job_ptr);
-			_set_job_time_limit(job_ptr, orig_time_limit);
-			continue;
-		}
+		/*AG
+		 * job_test_resv also seems to check for licenses
+		 * but the check seems to be broken
+		 */
+
+		time_t start_lic = -1; /* no need for initialization */
+		do {
+		  j = backfill_licenses_test_job(lt, job_ptr, &start_res);
+		  if (j != SLURM_SUCCESS) {
+        if (debug_flags & DEBUG_FLAG_BACKFILL)
+          info("backfill: %pJ license defer",
+               job_ptr);
+        _set_job_time_limit(job_ptr, orig_time_limit);
+        continue;
+      }
+		  start_lic = start_res;
+      FREE_NULL_BITMAP(avail_bitmap);
+      FREE_NULL_BITMAP(exc_core_bitmap);
+      j = job_test_resv(job_ptr, &start_res, true, &avail_bitmap,
+            &exc_core_bitmap, &resv_overlap, false);
+      if (j != SLURM_SUCCESS) {
+        if (debug_flags & DEBUG_FLAG_BACKFILL)
+          info("backfill: %pJ reservation defer",
+               job_ptr);
+        _set_job_time_limit(job_ptr, orig_time_limit);
+        continue;
+      }
+      {
+        char begin_buf[32];
+        char begin_buf2[32];
+        slurm_make_time_str(&start_lic, begin_buf2, sizeof(begin_buf2));
+        slurm_make_time_str(&start_res, begin_buf, sizeof(begin_buf));
+
+        debug3("  backfill: times from tests for %pJ: license: %s, nodes: %s.",
+                                   job_ptr,  begin_buf2,  begin_buf);
+      };
+		} while(start_lic != start_res);
 		if (start_res > now)
 			end_time = (time_limit * 60) + start_res;
 		else
@@ -2081,6 +2133,7 @@ next_task:
 			end_time = INFINITE;
 		if (resv_overlap)
 			resv_end = find_resv_end(start_res);
+
 		/* Identify usable nodes for this job */
 		bit_and(avail_bitmap, part_ptr->node_bitmap);
 		bit_and(avail_bitmap, up_node_bitmap);
@@ -2136,6 +2189,14 @@ next_task:
 				job_ptr->details->exc_node_bitmap);
 		}
 
+		/*AG + */
+		{
+	    char * node_list = bitmap2node_name(avail_bitmap);
+	    debug3("AG_backfill(2166): Available Nodes:%s",
+	         node_list);
+	    xfree(node_list);
+		}
+
 		/* Test if insufficient nodes remain OR
 		 *	required nodes missing OR
 		 *	nodes lack features OR
@@ -2177,14 +2238,20 @@ next_task:
 		if (debug_flags & DEBUG_FLAG_BACKFILL_MAP)
 			_dump_job_test(job_ptr, avail_bitmap, start_res);
 		test_fini = -1;
+
+// filter available node based on node features (see function comment)
 		build_active_feature_bitmap(job_ptr, avail_bitmap,
 					    &active_bitmap);
 		job_ptr->bit_flags |= BACKFILL_TEST;
 		job_ptr->bit_flags |= job_no_reserve;	/* 0 or TEST_NOW_ONLY */
 
+// running _try_sched for the case
+// when active_bitmap different from avail_bitmap (i.e. not NULL)
 		if (active_bitmap) {
 			j = _try_sched(job_ptr, &active_bitmap, min_nodes,
 				       max_nodes, req_nodes, exc_core_bitmap);
+			debug3("backfill: _try_sched with active_bitmap for %pJ returned %d.",
+			           job_ptr, j);
 			if (j == SLURM_SUCCESS) {
 				FREE_NULL_BITMAP(avail_bitmap);
 				avail_bitmap = active_bitmap;
@@ -2248,11 +2315,15 @@ next_task:
 					break;
 			}
 		}
+// running _try_sched for the case
+// when active_bitmap is same as avail_bitmap (or not "usable")
 		if (test_fini != 1) {
 			/* Either active_bitmap was NULL or not usable by the
 			 * job. Test using avail_bitmap instead */
 			j = _try_sched(job_ptr, &avail_bitmap, min_nodes,
 				       max_nodes, req_nodes, exc_core_bitmap);
+			debug3("backfill: _try_sched with avail_bitmap for %pJ returned %d.",
+			                 job_ptr, j);
 			if (test_fini == 0) {
 				job_ptr->details->share_res = save_share_res;
 				job_ptr->details->whole_node = save_whole_node;
@@ -2272,6 +2343,17 @@ next_task:
 			job_ptr->start_time = orig_start_time;
 			continue;	/* not runable in this partition */
 		}
+
+		/*AG+ */
+    {
+      char begin_buf[32];
+      char begin_buf2[32];
+      slurm_make_time_str(&job_ptr->start_time, begin_buf2, sizeof(begin_buf2));
+      slurm_make_time_str(&start_res, begin_buf, sizeof(begin_buf));
+
+      debug3("  backfill: time for %pJ: _try_sched: %s, others: %s.",
+                                 job_ptr,  begin_buf2,  begin_buf);
+    };
 
 		if (start_res > job_ptr->start_time) {
 			job_ptr->start_time = start_res;
@@ -2330,7 +2412,8 @@ next_task:
 			}
 
 			rc = _start_job(job_ptr, resv_bitmap);
-
+			debug3("  backfill: start_job for %pJ returned %d.",
+			                               job_ptr, rc);
 			if (rc == SLURM_SUCCESS) {
 				/*
 				 * If the following fails because of network
@@ -2392,6 +2475,7 @@ skip_start:
 				 * beforehand for _reset_job_time_limit.
 				 */
 				if (reset_time) {
+				  /* FIXME: check for licenses here also */
 					_reset_job_time_limit(job_ptr, now,
 							      node_space);
 					time_limit = job_ptr->time_limit;
@@ -2448,6 +2532,10 @@ skip_start:
 				later_start = 0;
 			} else {
 				/* Started this job, move to next one */
+
+			  /* update licenses tracker */
+
+			  backfill_licenses_alloc_job(lt, job_ptr, job_ptr->start_time, job_ptr->end_time);
 
 				/* Clear assumed rejected array status */
 				reject_array_job = NULL;
@@ -2515,6 +2603,8 @@ skip_start:
 				info("backfill: Try later %pJ later_start %ld",
 			             job_ptr, later_start);
 			}
+			debug3("backfill: Try later %pJ later_start %ld",
+			                   job_ptr, later_start);
 			job_ptr->start_time = 0;
 			goto TRY_LATER;
 		}
@@ -2529,6 +2619,7 @@ skip_start:
 
 		if (job_ptr->start_time > (sched_start + backfill_window)) {
 			/* Starts too far in the future to worry about */
+		  debug3("backfill: job starts too far in the future");
 			if (debug_flags & DEBUG_FLAG_BACKFILL)
 				_dump_job_sched(job_ptr, end_reserve,
 						avail_bitmap);
@@ -2572,11 +2663,16 @@ skip_start:
 		if ((job_ptr->start_time > now) &&
 		    (job_ptr->state_reason != WAIT_BURST_BUFFER_RESOURCE) &&
 		    (job_ptr->state_reason != WAIT_BURST_BUFFER_STAGING) &&
-		    _test_resv_overlap(node_space, avail_bitmap,
-				       start_time, end_reserve)) {
+		    (_test_resv_overlap(node_space, avail_bitmap,
+				       start_time, end_reserve)
+		      || backfill_licenses_overlap(lt, job_ptr, job_ptr->start_time)
+		    )
+		   ) {
 			/* This job overlaps with an existing reservation for
 			 * job to be backfill scheduled, which the sched
-			 * plugin does not know about. Try again later. */
+			 * plugin does not know about.
+			 * Or, it overlaps with licenses.
+			 *  Try again later. */
 			later_start = job_ptr->start_time;
 			job_ptr->start_time = 0;
 			if (debug_flags & DEBUG_FLAG_BACKFILL) {
@@ -2677,6 +2773,11 @@ skip_start:
 			_add_reservation(start_time, end_reserve, avail_bitmap,
 					 node_space, &node_space_recs);
 		}
+		/*AG TODO: figure out if the above conditions also apply to licenses.
+		 *         For now we won't apply them
+		 */
+		backfill_licenses_alloc_job(lt, job_ptr, start_time, end_reserve);
+
 		if (debug_flags & DEBUG_FLAG_BACKFILL_MAP)
 			_dump_node_space_table(node_space);
 		if ((orig_start_time != 0) &&
@@ -2708,6 +2809,8 @@ skip_start:
 				goto next_task;
 		}
 	}
+
+	destroy_lic_tracker(lt);
 
 	/* Restore preemption state if needed. */
 	_restore_preempt_state(job_ptr, &tmp_preempt_start_time,
@@ -2923,7 +3026,7 @@ static void _add_reservation(uint32_t start_time, uint32_t end_reserve,
 	bool placed = false;
 	int i, j;
 
-#if 0	
+#if 1 /*-AG 0 */
 	info("add job start:%u end:%u", start_time, end_reserve);
 	for (j = 0; ; ) {
 		info("node start:%u end:%u",

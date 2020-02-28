@@ -175,7 +175,8 @@ am__uninstall_files_from_dir = { \
 am__installdirs = "$(DESTDIR)$(pkglibdir)"
 LTLIBRARIES = $(pkglib_LTLIBRARIES)
 sched_backfill_la_LIBADD =
-am_sched_backfill_la_OBJECTS = backfill_wrapper.lo backfill.lo
+am_sched_backfill_la_OBJECTS = backfill_wrapper.lo \
+	backfill_licenses.lo usage_tracker.lo backfill.lo
 sched_backfill_la_OBJECTS = $(am_sched_backfill_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -503,6 +504,10 @@ PLUGIN_FLAGS = -module -avoid-version --export-dynamic
 AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/src/common
 pkglib_LTLIBRARIES = sched_backfill.la
 sched_backfill_la_SOURCES = backfill_wrapper.c	\
+			backfill_licenses.h \
+			backfill_licenses.c \
+			usage_tracker.h \
+			usage_tracker.c \
 			backfill.c	\
 			backfill.h
 
@@ -586,7 +591,9 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/backfill.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/backfill_licenses.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/backfill_wrapper.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/usage_tracker.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
