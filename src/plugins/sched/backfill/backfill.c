@@ -2100,8 +2100,10 @@ next_task:
         if (debug_flags & DEBUG_FLAG_BACKFILL)
           info("backfill: %pJ license defer",
                job_ptr);
+        /*AG TODO: consider what to do to make sure that the job will run
+         *   eventually and not starve */
         _set_job_time_limit(job_ptr, orig_time_limit);
-        continue;
+        goto NEXT_JOB;
       }
 		  start_lic = start_res;
       FREE_NULL_BITMAP(avail_bitmap);
@@ -2113,7 +2115,7 @@ next_task:
           info("backfill: %pJ reservation defer",
                job_ptr);
         _set_job_time_limit(job_ptr, orig_time_limit);
-        continue;
+        goto NEXT_JOB;
       }
       {
         char begin_buf[32];
@@ -2808,6 +2810,7 @@ skip_start:
 			     job_ptr->array_recs->max_run_tasks)))
 				goto next_task;
 		}
+NEXT_JOB:;
 	}
 
 	destroy_lic_tracker(lt);

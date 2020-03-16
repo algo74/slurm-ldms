@@ -1,6 +1,8 @@
 /*
  * usage_tracker.c
  *
+ * works with SLURM
+ *
  *  Created on: Feb 19, 2020
  *      Author: alex
  */

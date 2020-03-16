@@ -84,7 +84,7 @@ int run_discovery(int jobid, int my_stepid, int *is_leader)
             return sfd;
         }
     }
-    return connect_to_server(linkname);
+    return connect_to_simple_server(linkname);
 }
 
 
@@ -142,7 +142,7 @@ err_fd:
     return ret;
 }
 
-int connect_to_server(char *path)
+int connect_to_simple_server(char *path)
 {
     static struct sockaddr_un sa;
 

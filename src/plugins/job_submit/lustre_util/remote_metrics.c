@@ -13,7 +13,11 @@
 #endif
 
 #include "src/common/slurm_protocol_api.h"
+#include "src/common/xstring.h"
 #include "src/slurmctld/licenses.h"
+
+#include "client.h"
+#include "cJSON.h"
 
 extern List license_list; /*AG from licenses.c */
 extern pthread_mutex_t license_mutex; /*AG from licenses.c */
@@ -78,32 +82,66 @@ extern void *remote_metrics_agent(void *args)
 
     // if not connected, attempt to connect
 
+    const char addr[] = "127.0.0.1";
+    const char port[] = "2222";
+
+    static int sockfd = 0;
+
+    if (sockfd <= 0) {
+      debug3("connecting to lustre remote server");
+      sockfd = connect_to_simple_server(addr, port);
+    }
+
     // if connected, get new metrics
 
-    // if got new metrics, update metrics
-    ListIterator iter;
-    licenses_t *match;
+    bool updated = false;
 
-    char* license_name = "lustre";
-
-    slurm_mutex_lock(&license_mutex);
-
-    match = list_find_first(license_list, _license_find_rec,
-      license_name);
-    if (!match) {
-      debug2("could not find license %s for update",
-            license_name);
-    } else {
-      match->r_used = i;
-      debug3("remotely updated license %s for %d",
-                  license_name, i);
-      i = (i+1) % 1000;
+    if (sockfd > 0) {
+      cJSON *req =  cJSON_CreateObject();
+      cJSON_AddStringToObject(req, "type", "usage");
+      cJSON_AddStringToObject(req, "request", "lustre");
+      cJSON *resp = send_receive(sockfd, req);
+      cJSON_Delete(req);
+      if (resp) {
+        cJSON *payload = cJSON_GetObjectItem(resp, "response");
+        // FIXME: check for errors
+        i = atoi(payload->valuestring);
+        if (i >= 0) {
+          updated = true;
+        }
+      } else {
+        debug2("could not connect to Lustre remote server");
+        close(sockfd);
+        sockfd = -1;
+      }
     }
-    slurm_mutex_unlock(&license_mutex);
+
+    // if got new metrics, update metrics
+    if (updated) {
+      licenses_t *match;
+
+      char* license_name = "lustre";
+
+      slurm_mutex_lock(&license_mutex);
+
+      match = list_find_first(license_list, _license_find_rec,
+        license_name);
+      if (!match) {
+        debug2("could not find license %s for update",
+              license_name);
+      } else {
+        match->r_used = i;
+        debug3("remotely updated license %s for %d",
+                    license_name, i);
+
+      }
+      slurm_mutex_unlock(&license_mutex);
+    }
 
     // sleep
     _my_sleep(5 * USEC_IN_SEC);
   }
+  return NULL;
 }
 
 
