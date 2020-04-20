@@ -3934,6 +3934,21 @@ static char **_build_env(job_record_t *job_ptr, bool is_epilog)
 	if (job_ptr->wckey) {
 		setenvf(&my_env, "SLURM_WCKEY", "%s", job_ptr->wckey);
 	}
+	/*AG set up variety_id variable */
+	static const char VARIETY_ID_ENV_NAME[] = "LDMS_VARIETY_ID";
+	static const char pref[] = "variety_id=";
+	static const int pref_len = sizeof(pref)-1;
+	char *comment = job_ptr->comment;
+  if (xstrncmp(comment, pref, pref_len) == 0) {
+	  char *beginning = comment+pref_len;
+	  char *end = xstrchr(beginning, ';');
+	  if (end) {
+	    int len = end - beginning;
+	    char *variety_id = xstrndup(beginning, len);
+	    setenvf(&my_env, VARIETY_ID_ENV_NAME, "%s", variety_id);
+	    xfree(variety_id);
+	  }
+	}
 
 	return my_env;
 }

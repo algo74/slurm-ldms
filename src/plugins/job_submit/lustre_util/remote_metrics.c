@@ -83,7 +83,7 @@ extern void *remote_metrics_agent(void *args)
     // if not connected, attempt to connect
 
     const char addr[] = "127.0.0.1";
-    const char port[] = "2222";
+    const char port[] = "9999";
 
     static int sockfd = 0;
 

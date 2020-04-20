@@ -45,6 +45,7 @@
 #include "remote_metrics.h"
 #include "client.h"
 
+
 /*
  * These variables are required by the generic plugin interface.  If they
  * are not found in the plugin, the plugin loader will ignore it.
@@ -78,6 +79,7 @@ const uint32_t plugin_version = SLURM_VERSION_NUMBER;
 static pthread_t remote_metrics_thread = 0;
 static pthread_mutex_t lustre_util_thread_flag_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+static const char *VARIETY_ID_ENV_NAME = "LDMS_VARIETY_ID";
 static int sockfd = -1;
 
 
@@ -155,7 +157,6 @@ static void _add_or_update_env_param(job_desc_msg_t *job_desc,
   }
   debug3("%s: param %s not found, creating", __func__, param_name);
   xfree(check_str);
-  debug3("%s: param %s not found, creating", __func__, param_name);
 
   // add new entry if param_name not found
   char **new_envv = xmalloc((envc+2)*sizeof(char*));
@@ -188,7 +189,7 @@ RETRY:
   }
   // get variety_id from remote
   if (sockfd <= 0) {
-    sockfd = connect_to_simple_server("127.0.0.1", "2222");
+    sockfd = connect_to_simple_server("127.0.0.1", "9999");
   }
   if (sockfd <= 0) {
     error("could not connect to the server for job_submit");
@@ -371,7 +372,7 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
   xfree(comment);
 
   // store variety_id so that compute notes can access it
-  _add_or_update_env_param(job_desc, "SLURM_VARIETY_ID", variety_id);
+  _add_or_update_env_param(job_desc, VARIETY_ID_ENV_NAME, variety_id);
 
   // get usage info from remote (if needed)
   /*AG TODO: implement "if needed" check*/
