@@ -90,7 +90,7 @@ int init( void )
 
   slurm_mutex_lock( &lustre_util_thread_flag_mutex );
   if ( remote_metrics_thread ) {
-    debug2( "Remote metrics thread already running, not starting another" );
+    error( "Remote metrics thread already running, not starting another" );
     slurm_mutex_unlock( &lustre_util_thread_flag_mutex );
     return SLURM_ERROR;
   }
@@ -179,26 +179,28 @@ static void _add_or_update_env_param(job_desc_msg_t *job_desc,
  */
 static cJSON *_send_receive(cJSON* request)
 {
-  //FIXME: proper error handling
   int tries = 0;
-  const int max_tries = 10;
+  const int max_tries = 3;
 RETRY:
   if (++tries > max_tries) {
     error("%s: tried %d times and gave up", __func__, max_tries);
     return NULL;
   }
-  // get variety_id from remote
+
+  // make sure we connected
   if (sockfd <= 0) {
     sockfd = connect_to_simple_server("127.0.0.1", "9999");
   }
   if (sockfd <= 0) {
-    error("could not connect to the server for job_submit");
+    error("%s: could not connect to the server for job_submit",
+        __func__);
     return NULL;
   }
+
   cJSON *resp = send_receive(sockfd, request);
   if (!resp) {
-    error("did not get expected response from the server for job_submit");
-    /* FIXME: proper error handling */
+    error("%s: did not get expected response from the server for job_submit",
+        __func__);
     close(sockfd);
     sockfd = -1;
     goto RETRY;
@@ -261,7 +263,7 @@ static bool _add_license_to_job_desc(job_desc_msg_t *job_desc,
 
 
 
-static char *_get_variety_id(job_desc_msg_t *job_desc)
+static char *_get_variety_id(job_desc_msg_t *job_desc, uint32_t uid)
 {
   cJSON *request = cJSON_CreateObject();
   // get the comment field
@@ -277,19 +279,18 @@ static char *_get_variety_id(job_desc_msg_t *job_desc)
       for(c = equalchar+1; c < semicolon; c++) {
         if (!isalnum(c) && *c != '_') {
           // a wrong character in jobname
-          error("wrong character in jobtype: '%c'", *c);
+          error("_get_variety_id: wrong character in jobtype: '%c'", *c);
           return NULL;
         }
       }
       int len = semicolon-equalchar;
       char *jobname = xstrndup(equalchar+1, len-1);
-      debug3("Job name is '%s'", jobname);
-      // prepare request for jobname option
+      debug3("_get_variety_id: Job type is '%s'", jobname);
+      // prepare request for jobtype option
       cJSON_AddStringToObject(request, "type", "variety_id/manual");
       cJSON_AddStringToObject(request, "variety_name", jobname);
-      /*AG TODO: add username and/or groupname */
     } else {
-      error("no semicolon after jobtype");
+      error("_get_variety_id: no semicolon after jobtype");
           return NULL;
     }
   } else {
@@ -298,41 +299,54 @@ static char *_get_variety_id(job_desc_msg_t *job_desc)
     cJSON_AddStringToObject(request, "type", "variety_id/auto");
     // get script and args
     cJSON_AddStringToObject(request, "script_name", job_desc->script);
-    debug3("script name is \"%s\"", job_desc->script);
-    debug3("extra is \"%s\"", job_desc->extra);
-    debug3("job_id_str is \"%s\"", job_desc->job_id_str);
-    debug3("script_buf is \"%s\"", job_desc->script_buf);
-    debug3("x11_magic_cookie is \"%s\"", job_desc->x11_magic_cookie);
+    debug3("_get_variety_id: job_desc->script is \"%s\"", job_desc->script);
+    debug3("_get_variety_id: job_desc->job_id_str is \"%s\"", job_desc->job_id_str);
     int count = job_desc->argc;
     int i;
     for (i = 0; (i < (size_t)count); i++)
     {
         char * n = job_desc->argv[i];
-        if(!n) error("string %d is NULL", i);
-        else debug3("string %d is \"%s\"", i, n);
+        if(!n) error("_get_variety_id: job_desc->argv[%d] is NULL", i);
+        else debug3("_get_variety_id: job_desc->argv[%d] is \"%s\"", i, n);
     }
-    for (i = 0; (i < (size_t)job_desc->env_size); i++)
-    {
-        char * n = job_desc->environment[i];
-        if(!n) error("environment %d is NULL", i);
-        else debug3("environment %d is \"%s\"", i, n);
-    }
+//    for (i = 0; (i < (size_t)job_desc->env_size); i++)
+//    {
+//        char * n = job_desc->environment[i];
+//        if(!n) error("environment %d is NULL", i);
+//        else debug3("environment %d is \"%s\"", i, n);
+//    }
     cJSON *arg_array = cJSON_CreateStringArray(job_desc->argv, job_desc->argc);
     cJSON_AddItemToObject(request, "script_args", arg_array);
   }
+  cJSON_AddStringToObject(request, "min_nodes", job_desc->min_nodes);
+  cJSON_AddStringToObject(request, "max_nodes", job_desc->max_nodes);
+  if (job_desc->user_id) {
+    uid = job_desc->user_id;
+  }
+  cJSON_AddStringToObject(request, "UID", uid);
+  /*AG TODO: add groupid */
 
   cJSON * resp = _send_receive(request);
 
   if(resp == NULL){
-    error("%s: could not get variety_id", __func__);
+    error("%s: could not get response from variety_id server", __func__);
     return NULL;
   }
 
-  char *variety_id = xstrdup(cJSON_GetObjectItem(resp, "variety_id")->valuestring);
+  char *variety_id = NULL;
+  cJSON *json_var_id = cJSON_GetObjectItem(resp, "variety_id");
+  if (cJSON_IsString(json_var_id)) {
+    variety_id = xstrdup(json_var_id->valuestring);
+    debug3("Variety id is '%s'", variety_id);
+  }
+  else {
+    error("%s:  malformed response from variety_id server", __func__);
+  }
   cJSON_Delete(resp);
-  debug3("Variety id is '%s'", variety_id);
+
   return variety_id;
 }
+
 
 
 static cJSON *_get_job_usage(char *variety_id)
@@ -344,7 +358,13 @@ static cJSON *_get_job_usage(char *variety_id)
   cJSON *resp = _send_receive(request);
 
   if(resp == NULL){
-    error("%s: could not get job utilization", __func__);
+    error("%s: could not get job utilization from server", __func__);
+    return NULL;
+  }
+
+  cJSON *util = cJSON_GetObjectItem(resp, "response");
+  if (util == NULL) {
+    error("%s: bad response from server: no response field", __func__);
     return NULL;
   }
 
@@ -359,8 +379,9 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
 	// NOTE: no job id actually exists yet (=NO_VAL)
 
   // get variety_id
-  char *variety_id = _get_variety_id(job_desc);
+  char *variety_id = _get_variety_id(job_desc, submit_uid);
   if (!variety_id) {
+    *err_msg = xstrdup("Error getting variety id. Is the server on?");
     return SLURM_ERROR;
   }
 
@@ -378,6 +399,7 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
   /*AG TODO: implement "if needed" check*/
   cJSON * utilization = _get_job_usage(variety_id);
   if (!utilization) {
+    *err_msg = xstrdup("Error getting job utilization. Is the server on?");
     return SLURM_ERROR;
   }
 
@@ -389,37 +411,49 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
   // time_limit
   if (job_desc->time_limit == NO_VAL) {
     json_object = cJSON_GetObjectItem(utilization, "time_limit");
-    if (json_object) {
+    if (!json_object) {
+      debug2("%s: didn't get time_limit from server for variety_id %s",
+          __func__, variety_id);
+    } else if (!cJSON_IsString(json_object)) {
+      error("%s: malformed time_limit from server for variety_id %s",
+          __func__, variety_id);
+    } else {
       long time_limit = strtol(json_object->valuestring, &end_num, 10);
-      if (time_limit >= 0 && *end_num == '\0') {
-        job_desc->time_limit = time_limit;
-      } else {
+      if (*end_num != '\0' || time_limit < 0) {
         error("%s: can't understand time_limit from server: %s",
             __func__, json_object->valuestring);
+      } else if (time_limit == 0) {
+        debug3("%s: got zero time_limit from server for variety_id %s",
+          __func__, variety_id);
+      } else {
+        job_desc->time_limit = time_limit;
       }
-    } else {
-      debug2("%s: didn't get time_limit from server for variety_id %s",
-            __func__, variety_id);
     }
   }
 
   // lustre
   if (!_license_exist(job_desc->licenses, "lustre")) {
     json_object = cJSON_GetObjectItem(utilization, "lustre");
-    if (json_object) {
+    if (!json_object) {
+      debug2("%s: didn't get lustre param from server for variety_id %s",
+          __func__, variety_id);
+    } else if (!cJSON_IsString(json_object)) {
+      error("%s: malformed lustre param from server for variety_id %s",
+          __func__, variety_id);
+    } else {
       long num = strtol(json_object->valuestring, &end_num, 10);
-      if (num >= 0 && *end_num == '\0') {
+      if (*end_num != '\0' || num < 0) {
+        error("%s: can't understand lustre param from server: %s",
+            __func__, json_object->valuestring);
+      } else if (num == 0) {
+        debug3("%s: got zero lustre param from server for variety_id %s",
+          __func__, variety_id);
+      } else {
         if (!_add_license_to_job_desc(job_desc, "lustre", num)) {
           error("%s: can't update licenses: %s",
             __func__, job_desc->licenses);
         }
-      } else {
-        error("%s: can't understand lustre from server: %s",
-            __func__, json_object->valuestring);
       }
-    } else {
-      debug2("%s: didn't get lustre from server for variety_id %s",
-            __func__, variety_id);
     }
   }
 
@@ -427,13 +461,6 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
 
   xfree(variety_id);
 
-	if (job_desc->time_limit == NO_VAL) {
-		info("Missing time limit for job by uid:%u", submit_uid);
-		return ESLURM_MISSING_TIME_LIMIT;
-	} else if (job_desc->time_limit == INFINITE) {
-		info("Bad time limit for job by uid:%u", submit_uid);
-		return ESLURM_INVALID_TIME_LIMIT;
-	}
 
 	debug3("exiting %s", __func__);
 

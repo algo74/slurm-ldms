@@ -179,6 +179,7 @@ int backfill_licenses_overlap(lic_tracker_p lt, job_record_t *job_ptr, time_t wh
 int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr, time_t *when){
   /*AG TODO: implement reservations */
   /*AG FIXME: should probably use job_ptr->min_time if present */
+  /*AG TODO: refactor algorithm */
   /* In case the job is scheduled,
    * we would like the job to fit perfectly if possible.
    * Thus, we will adjust time and duration
@@ -204,6 +205,12 @@ int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr, time_t *
        status != CONTINUE;
        list_iterator_reset(j_iter)) {
     while ((license_entry = list_next(j_iter))) {
+      if (license_entry->total == 0) {
+        /* we don't want to do any checks
+         * but we have to switch status to prevent constant loops */
+        status = CONTINUE;
+        continue;
+      }
       lt_entry = list_find_first(lt->tracker, _lt_find_lic_name, license_entry->name);
       if (lt_entry) {
         curr_start = ut_int_when_below(lt_entry->ut, prev_start, duration,

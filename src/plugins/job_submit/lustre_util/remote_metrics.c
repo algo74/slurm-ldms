@@ -88,7 +88,7 @@ extern void *remote_metrics_agent(void *args)
     static int sockfd = 0;
 
     if (sockfd <= 0) {
-      debug3("connecting to lustre remote server");
+      debug3("connecting to remote_metric server");
       sockfd = connect_to_simple_server(addr, port);
     }
 
@@ -96,23 +96,36 @@ extern void *remote_metrics_agent(void *args)
 
     bool updated = false;
 
-    if (sockfd > 0) {
+    if (sockfd <= 0) {
+      error("error connecting to remote_metric server");
+    } else {
       cJSON *req =  cJSON_CreateObject();
       cJSON_AddStringToObject(req, "type", "usage");
-      cJSON_AddStringToObject(req, "request", "lustre");
+      cJSON *metric_list = cJSON_AddObjectToObject(req, "request");
+      cJSON_AddStringToObject(metric_list, "lustre");
       cJSON *resp = send_receive(sockfd, req);
       cJSON_Delete(req);
-      if (resp) {
-        cJSON *payload = cJSON_GetObjectItem(resp, "response");
-        // FIXME: check for errors
-        i = atoi(payload->valuestring);
-        if (i >= 0) {
-          updated = true;
-        }
-      } else {
-        debug2("could not connect to Lustre remote server");
+      if (!resp) {
+        debug2("could not get response from remote_metric server");
         close(sockfd);
         sockfd = -1;
+      } else {
+        cJSON *payload = cJSON_GetObjectItem(resp, "response");
+        if (!payload) {
+          error("remote_metric server response has no \"response\"");
+        } else {
+          cJSON *lustre = cJSON_GetObjectItem(payload, "luster");
+          if (!lustre) {
+            error("remote_metric server response has no item \"luster\"");
+          } else if (!cJSON_IsString(lustre)) {
+            error("remote_metric server response item \"luster\" isn't a string");
+          } else {
+            i = atoi(lustre->valuestring);
+            if (i >= 0) {
+              updated = true;
+            }
+          }
+        }
       }
     }
 
@@ -127,9 +140,13 @@ extern void *remote_metrics_agent(void *args)
       match = list_find_first(license_list, _license_find_rec,
         license_name);
       if (!match) {
-        debug2("could not find license %s for update",
+        debug("could not find license %s for remote_metric update",
               license_name);
       } else {
+        if (i > match->total) {
+          /* clump value to total */
+          i = match->total;
+        }
         match->r_used = i;
         debug3("remotely updated license %s for %d",
                     license_name, i);
