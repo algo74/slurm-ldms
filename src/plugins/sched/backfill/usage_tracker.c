@@ -47,6 +47,10 @@ ut_int_add_usage(utracker_int_t ut,
                int usage) {
   xassert(start>0);
   xassert(end>start);
+  if (usage == 0)
+    // do nothing
+    return;
+
   utiterator_t it = list_iterator_create(ut);
   ut_int_item_t *prev;
   ut_int_item_t *next = list_next(it);
@@ -90,11 +94,14 @@ ut_int_add_usage(utracker_int_t ut,
 }
 
 
-
 void
 ut_int_remove_till_end(utracker_int_t ut,
                       time_t start, int usage) {
   xassert(start>0);
+  if (usage == 0)
+    // do nothing
+    return;
+
   utiterator_t it = list_iterator_create(ut);
   ut_int_item_t *prev;
   ut_int_item_t *next = list_next(it);
