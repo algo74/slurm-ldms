@@ -18,6 +18,7 @@
 
 #include "client.h"
 #include "cJSON.h"
+#include "remote_metrics.h"
 
 extern List license_list; /*AG from licenses.c */
 extern pthread_mutex_t license_mutex; /*AG from licenses.c */
@@ -25,6 +26,7 @@ extern pthread_mutex_t license_mutex; /*AG from licenses.c */
 static pthread_mutex_t term_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  term_cond = PTHREAD_COND_INITIALIZER;
 static bool stop_remote_metrics = false;
+
 
 /* Sleep for at least specified time, returns actual sleep time in usec
  *
@@ -78,14 +80,21 @@ static int _license_find_rec(void *x, void *key)
 extern void *remote_metrics_agent(void *args)
 {
   int i = 0;
+
+  debug3("starting remote_metrics_agent");
+
+  remote_metric_agent_arg_t *server = (remote_metric_agent_arg_t *) args;
+
+  char *addr = server->addr;
+  char *port = server->port;
+
+  xfree(server);
+
+  int sockfd = 0;
+
   while(!stop_remote_metrics) {
 
     // if not connected, attempt to connect
-
-    const char addr[] = "127.0.0.1";
-    const char port[] = "9999";
-
-    static int sockfd = 0;
 
     if (sockfd <= 0) {
       debug3("connecting to remote_metric server");
@@ -101,8 +110,9 @@ extern void *remote_metrics_agent(void *args)
     } else {
       cJSON *req =  cJSON_CreateObject();
       cJSON_AddStringToObject(req, "type", "usage");
-      cJSON *metric_list = cJSON_AddObjectToObject(req, "request");
-      cJSON_AddStringToObject(metric_list, "lustre");
+      cJSON *metric_list = cJSON_CreateArray();
+      cJSON_AddItemToArray(metric_list, cJSON_CreateString("lustre"));
+      cJSON_AddItemToObject(req, "request", metric_list);
       cJSON *resp = send_receive(sockfd, req);
       cJSON_Delete(req);
       if (!resp) {
@@ -114,9 +124,9 @@ extern void *remote_metrics_agent(void *args)
         if (!payload) {
           error("remote_metric server response has no \"response\"");
         } else {
-          cJSON *lustre = cJSON_GetObjectItem(payload, "luster");
+          cJSON *lustre = cJSON_GetObjectItem(payload, "lustre");
           if (!lustre) {
-            error("remote_metric server response has no item \"luster\"");
+            error("remote_metric server response has no item \"lustre\"");
           } else if (!cJSON_IsString(lustre)) {
             error("remote_metric server response item \"luster\" isn't a string");
           } else {
@@ -158,6 +168,10 @@ extern void *remote_metrics_agent(void *args)
     // sleep
     _my_sleep(5 * USEC_IN_SEC);
   }
+
+  xfree(addr);
+  xfree(port);
+
   return NULL;
 }
 

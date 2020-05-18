@@ -80,13 +80,29 @@ static pthread_t remote_metrics_thread = 0;
 static pthread_mutex_t lustre_util_thread_flag_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static const char *VARIETY_ID_ENV_NAME = "LDMS_VARIETY_ID";
+static const char *REMOTE_SERVER_ENV_NAME = "VINSNL_SERVER";
+static const char *REMOTE_SERVER_STRING = "127.0.0.1:9999";
 static int sockfd = -1;
+static char *variety_id_server = NULL;
+static char *variety_id_port = NULL;
 
 
 
 int init( void )
 {
   debug2( "=========== Lustre utilization plugin starting ================" );
+
+  /* initializing server address */
+  char *server_string = getenv(REMOTE_SERVER_ENV_NAME);
+    if (server_string == NULL)
+      server_string = REMOTE_SERVER_STRING;
+  char * colon = xstrstr(server_string, ":");
+  if (!colon) {
+    error("job_submit_lustre_uitl: malformed sever string: \"%s\"", server_string);
+    return SLURM_ERROR;
+  }
+  variety_id_server = xstrndup(server_string, colon - server_string);
+  variety_id_port = xstrdup(colon+1);
 
   slurm_mutex_lock( &lustre_util_thread_flag_mutex );
   if ( remote_metrics_thread ) {
@@ -95,8 +111,12 @@ int init( void )
     return SLURM_ERROR;
   }
 
+  remote_metric_agent_arg_t *args = xmalloc(sizeof(remote_metric_agent_arg_t));
+  args->addr = xstrdup(variety_id_server);
+  args->port = xstrdup(variety_id_port);
+
   /* since we do a join on this later we don't make it detached */
-  slurm_thread_create(&remote_metrics_thread, remote_metrics_agent, NULL);
+  slurm_thread_create(&remote_metrics_thread, remote_metrics_agent, (void *)args);
 
   slurm_mutex_unlock( &lustre_util_thread_flag_mutex );
 
@@ -189,7 +209,7 @@ RETRY:
 
   // make sure we connected
   if (sockfd <= 0) {
-    sockfd = connect_to_simple_server("127.0.0.1", "9999");
+    sockfd = connect_to_simple_server(variety_id_server, variety_id_port);
   }
   if (sockfd <= 0) {
     error("%s: could not connect to the server for job_submit",
@@ -318,12 +338,16 @@ static char *_get_variety_id(job_desc_msg_t *job_desc, uint32_t uid)
     cJSON *arg_array = cJSON_CreateStringArray(job_desc->argv, job_desc->argc);
     cJSON_AddItemToObject(request, "script_args", arg_array);
   }
-  cJSON_AddStringToObject(request, "min_nodes", job_desc->min_nodes);
-  cJSON_AddStringToObject(request, "max_nodes", job_desc->max_nodes);
+  char buf[256];
+  sprintf(buf, "%d", job_desc->min_nodes);
+  cJSON_AddStringToObject(request, "min_nodes", buf);
+  sprintf(buf, "%d", job_desc->max_nodes);
+  cJSON_AddStringToObject(request, "max_nodes", buf);
   if (job_desc->user_id) {
     uid = job_desc->user_id;
   }
-  cJSON_AddStringToObject(request, "UID", uid);
+  sprintf(buf, "%d", uid);
+  cJSON_AddStringToObject(request, "UID", buf);
   /*AG TODO: add groupid */
 
   cJSON * resp = _send_receive(request);
@@ -368,7 +392,7 @@ static cJSON *_get_job_usage(char *variety_id)
     return NULL;
   }
 
-  return resp;
+  return util;
 }
 
 
