@@ -88,6 +88,8 @@ extern void *remote_metrics_agent(void *args)
   char *addr = server->addr;
   char *port = server->port;
 
+  debug3("%s: addr: %s, port: %s", __func__, addr, port);
+
   xfree(server);
 
   int sockfd = 0;
@@ -97,7 +99,7 @@ extern void *remote_metrics_agent(void *args)
     // if not connected, attempt to connect
 
     if (sockfd <= 0) {
-      debug3("connecting to remote_metric server");
+      debug3("%s: connecting to addr: %s, port: %s", __func__, addr, port);
       sockfd = connect_to_simple_server(addr, port);
     }
 

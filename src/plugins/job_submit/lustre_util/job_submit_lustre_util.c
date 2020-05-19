@@ -94,8 +94,10 @@ int init( void )
 
   /* initializing server address */
   char *server_string = getenv(REMOTE_SERVER_ENV_NAME);
-    if (server_string == NULL)
-      server_string = REMOTE_SERVER_STRING;
+  if (server_string == NULL) {
+    debug3("%s: env %s isn't set, using default", __func__, REMOTE_SERVER_ENV_NAME);
+    server_string = REMOTE_SERVER_STRING;
+  }
   char * colon = xstrstr(server_string, ":");
   if (!colon) {
     error("job_submit_lustre_uitl: malformed sever string: \"%s\"", server_string);
@@ -103,10 +105,11 @@ int init( void )
   }
   variety_id_server = xstrndup(server_string, colon - server_string);
   variety_id_port = xstrdup(colon+1);
+  debug3("%s: addr: %s, port: %s", __func__, variety_id_server, variety_id_port);
 
   slurm_mutex_lock( &lustre_util_thread_flag_mutex );
   if ( remote_metrics_thread ) {
-    error( "Remote metrics thread already running, not starting another" );
+    error("Remote metrics thread already running, not starting another" );
     slurm_mutex_unlock( &lustre_util_thread_flag_mutex );
     return SLURM_ERROR;
   }
@@ -209,6 +212,8 @@ RETRY:
 
   // make sure we connected
   if (sockfd <= 0) {
+    debug3("%s: connecting to host: %s, port: %s",
+        __func__, variety_id_server, variety_id_port);
     sockfd = connect_to_simple_server(variety_id_server, variety_id_port);
   }
   if (sockfd <= 0) {
