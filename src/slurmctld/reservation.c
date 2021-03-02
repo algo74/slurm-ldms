@@ -4560,6 +4560,8 @@ extern void job_time_adj_resv(job_record_t *job_ptr)
 			continue;	/* already validated */
 		if (resv_ptr->start_time >= job_ptr->end_time)
 			continue;	/* reservation starts after job ends */
+		/*AG FIXME: remove license check here
+		 *   TODO: implement it differently  */
 		if (!license_list_overlap(job_ptr->license_list,
 					  resv_ptr->license_list) &&
 		    ((resv_ptr->node_bitmap == NULL) ||
@@ -5085,6 +5087,9 @@ extern uint32_t job_test_watts_resv(job_record_t *job_ptr, time_t when,
  *			  reserved
  *	ESLURM_RESERVATION_MAINT job has no reservation, but required nodes are
  *				 in maintenance reservation
+ *
+ **AG
+ * job_test_resv also seems to check for licenses
  */
 extern int job_test_resv(job_record_t *job_ptr, time_t *when,
 			 bool move_time, bitstr_t **node_bitmap,
@@ -5304,12 +5309,13 @@ extern int job_test_resv(job_record_t *job_ptr, time_t *when,
 			 * by the job are freed by any reservation without
 			 * counting them, so the results are not accurate.
 			 */
-			if (license_list_overlap(job_ptr->license_list,
-						 resv_ptr->license_list)) {
-				if ((lic_resv_time == (time_t) 0) ||
-				    (lic_resv_time > resv_ptr->end_time))
-					lic_resv_time = resv_ptr->end_time;
-			}
+			/*AG TODO: reimplement licenses properly */
+//			if (license_list_overlap(job_ptr->license_list,
+//						 resv_ptr->license_list)) {
+//				if ((lic_resv_time == (time_t) 0) ||
+//				    (lic_resv_time > resv_ptr->end_time))
+//					lic_resv_time = resv_ptr->end_time;
+//			}
 
 			if ((resv_ptr->full_nodes) ||
 			    (job_ptr->details->whole_node == 1)) {
@@ -5346,18 +5352,19 @@ extern int job_test_resv(job_record_t *job_ptr, time_t *when,
 		}
 		list_iterator_destroy(iter);
 
-		if ((rc == SLURM_SUCCESS) && move_time) {
-			if (license_job_test(job_ptr, job_start_time, reboot)
-			    == EAGAIN) {
-				/*
-				 * Need to postpone for licenses. Time returned
-				 * is best case; first reservation with those
-				 * licenses ends.
-				 */
-				rc = ESLURM_NODES_BUSY;
-				*when = lic_resv_time;
-			}
-		}
+		/*AG TODO: reimplement licenses properly */
+//		if ((rc == SLURM_SUCCESS) && move_time) {
+//			if (license_job_test(job_ptr, job_start_time, reboot)
+//			    == EAGAIN) {
+//				/*
+//				 * Need to postpone for licenses. Time returned
+//				 * is best case; first reservation with those
+//				 * licenses ends.
+//				 */
+//				rc = ESLURM_NODES_BUSY;
+//				*when = lic_resv_time;
+//			}
+//		}
 		if (rc == SLURM_SUCCESS)
 			break;
 		/*

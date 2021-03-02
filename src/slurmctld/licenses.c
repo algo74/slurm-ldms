@@ -55,9 +55,9 @@
 #include "src/slurmctld/slurmctld.h"
 #include "src/common/slurm_accounting_storage.h"
 
-List license_list = (List) NULL;
+extern List license_list = (List) NULL; /*AG needed in lustre_util plugin*/
 time_t last_license_update = 0;
-static pthread_mutex_t license_mutex = PTHREAD_MUTEX_INITIALIZER;
+extern pthread_mutex_t license_mutex = PTHREAD_MUTEX_INITIALIZER; /*AG not static anymore - needed in lustre_util plugin*/
 static void _pack_license(struct licenses *lic, Buf buffer, uint16_t protocol_version);
 
 /* Print all licenses on a list */
@@ -617,7 +617,6 @@ extern void license_job_merge(job_record_t *job_ptr)
  * IN reboot    - true if node reboot required to start job
  * RET: SLURM_SUCCESS, EAGAIN (not available now), SLURM_ERROR (never runnable)
  */
- /*AG may need to change in order to enable checking of "remote" usage */
 extern int license_job_test(job_record_t *job_ptr, time_t when, bool reboot)
 {
 	ListIterator iter;
@@ -761,7 +760,14 @@ extern int license_job_return(job_record_t *job_ptr)
 				match->used = 0;
 				rc = SLURM_ERROR;
 			}
-			/*AG may need to temporary update r_used */
+			/*AG temporary decrease r_used -- may not be a good idea */
+			if (match->r_used >= license_entry->total)
+        match->r_used -= license_entry->total;
+      else {
+        debug2("%s: license remote metrics count underflow for %s",
+              __func__, match->name);
+        match->r_used = 0;
+      }
 			license_entry->used = 0;
 		} else {
 			/* This can happen after a reconfiguration */
