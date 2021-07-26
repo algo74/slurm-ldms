@@ -314,7 +314,7 @@ static char *_get_variety_id(job_desc_msg_t *job_desc, uint32_t uid)
       // prepare request for jobtype option
       cJSON_AddStringToObject(request, "type", "variety_id/manual");
       cJSON_AddStringToObject(request, "variety_name", jobname);
-      cJSON_AddStringToObject(request, "job_id", job_desc->job_id); //CLP ADDED
+      cJSON_AddStringToObject(request, "job_id", job_desc->job_id); //CLP ADDED job_id
     } else {
       error("_get_variety_id: no semicolon after jobtype");
           return NULL;
