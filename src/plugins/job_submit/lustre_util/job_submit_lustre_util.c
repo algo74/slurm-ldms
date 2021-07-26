@@ -343,6 +343,7 @@ static char *_get_variety_id(job_desc_msg_t *job_desc, uint32_t uid)
 //    }
     cJSON *arg_array = cJSON_CreateStringArray(job_desc->argv, job_desc->argc);
     cJSON_AddItemToObject(request, "script_args", arg_array);
+    cJSON_AddStringToObject(request, "job_id", job_desc->job_id); //CLP ADDED job_id
   }
   char buf[256];
   sprintf(buf, "%d", job_desc->min_nodes);
