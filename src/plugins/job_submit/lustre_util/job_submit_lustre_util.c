@@ -356,10 +356,12 @@ static char *_get_variety_id(job_desc_msg_t *job_desc, uint32_t uid)
   sprintf(buf, "%d", uid);
   cJSON_AddStringToObject(request, "UID", buf);
   /*AG TODO: add groupid */
-  //sprintf(buf, "%u", job_desc->job_id); //CLP ADDED job_id
-  //cJSON_AddStringToObject(request, "job_id", buf); //CLP ADDED job_id
-  char * job_id = getenv(JOB_ID_ENV_NAME);
-  cJSON_AddStringToObject(request, "job_id", job_id);
+  sprintf(buf, "%u", job_desc->job_id); //CLP ADDED job_id
+  cJSON_AddStringToObject(request, "job_id", buf); //CLP ADDED job_id
+  //char * job_id = getenv(JOB_ID_ENV_NAME); //CLP ADDED
+  //cJSON_AddStringToObject(request, "job_id", job_id); //CLP ADDED
+  sprintf(buf,"%d",job_desc->begin_time); //CLP ADDED
+  cJSON_AddStringToObject(request, "begin_time", buf); //CLP ADDED job_id
 
   cJSON * resp = _send_receive(request);
 
@@ -428,9 +430,7 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
   xfree(comment);
 
   // store variety_id so that compute notes can access it
-  //_add_or_update_env_param(job_desc, VARIETY_ID_ENV_NAME, variety_id); //CLP ADDED
-  char *test = "HELLO WORLD";
-  _add_or_update_env_param(job_desc, VARIETY_ID_ENV_NAME, test);
+  _add_or_update_env_param(job_desc, VARIETY_ID_ENV_NAME, variety_id); //CLP ADDED
 
   // get usage info from remote (if needed)
   /*AG TODO: implement "if needed" check*/
