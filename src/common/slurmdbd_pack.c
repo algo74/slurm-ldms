@@ -1052,6 +1052,8 @@ extern void slurmdbd_pack_id_rc_msg(void *in,
 		pack32(msg->job_id, buffer);
 		pack64(msg->db_index, buffer);
 		pack32(msg->return_code, buffer);
+		pack32(msg->alloc_nodes, buffer); //CLP ADDED
+		pack_time(msg->submit_time, buffer); //CLP ADDED
 	}
 }
 

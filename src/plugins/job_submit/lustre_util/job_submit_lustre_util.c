@@ -354,9 +354,6 @@ static char *_get_variety_id(job_desc_msg_t *job_desc, uint32_t uid)
   sprintf(buf, "%d", uid);
   cJSON_AddStringToObject(request, "UID", buf);
   /*AG TODO: add groupid */
-  uint32_t gid = 5;
-  sprintf(buf, "%d", gid);
-  cJSON_AddStringToObject(request, "GID", buf); //CLP ADDED GID
   sprintf(buf, "%u", job_desc->job_id); //CLP ADDED job_id
   cJSON_AddStringToObject(request, "job_id", buf); //CLP ADDED job_id
 

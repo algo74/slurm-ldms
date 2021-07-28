@@ -25,6 +25,7 @@ General
   - "GID" : "..."
   - "min_nodes" : "<int>"
   - "max_nodes" : "<int>"
+  - "job_id": "<int>"
   
 * Response: 
   - “status”: ”OK”, 

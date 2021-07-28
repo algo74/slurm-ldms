@@ -300,6 +300,8 @@ typedef struct dbd_id_rc_msg {
 	uint32_t job_id;
 	uint64_t db_index;
 	uint32_t return_code;
+	uint32_t alloc_nodes; //CLP ADDED 
+	time_t submit_time; //CLP ADDED
 } dbd_id_rc_msg_t;
 
 typedef struct dbd_job_suspend_msg {
