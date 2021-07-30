@@ -89,7 +89,6 @@ static char *variety_id_port = NULL;
 static const char *JOB_ID_ENV_NAME = "SLURM_JOB_ID"; //CLP ADDED
 
 
-
 int init( void )
 {
   debug2( "=========== Lustre utilization plugin starting ================" );
@@ -430,7 +429,7 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
   xfree(comment);
 
   // store variety_id so that compute notes can access it
-  _add_or_update_env_param(job_desc, VARIETY_ID_ENV_NAME, variety_id); //CLP ADDED
+  _add_or_update_env_param(job_desc, VARIETY_ID_ENV_NAME, variety_id);
 
   // get usage info from remote (if needed)
   /*AG TODO: implement "if needed" check*/

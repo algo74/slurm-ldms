@@ -3934,6 +3934,8 @@ static char **_build_env(job_record_t *job_ptr, bool is_epilog)
 	if (job_ptr->wckey) {
 		setenvf(&my_env, "SLURM_WCKEY", "%s", job_ptr->wckey);
 	}
+	setenvf(&my_env, "SLURM_NODE_CNT", "%u", job_ptr->node_cnt); //CLP ADDED
+	setenvf(&my_env, "SLURM_SUBMIT_TIME", "%u", job_ptr->details->submit_time); //CLP ADDED
 	/*AG set up variety_id variable */
 	static const char VARIETY_ID_ENV_NAME[] = "LDMS_VARIETY_ID";
 	static const char pref[] = "variety_id=";
