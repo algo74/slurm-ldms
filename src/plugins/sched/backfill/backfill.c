@@ -1613,8 +1613,10 @@ static int _attempt_backfill(void)
 	/* Ignore nodes that have been set as available during this cycle. */
 	bit_clear_all(bf_ignore_node_bitmap);
 
-	lic_tracker_p lt = init_lic_tracker(backfill_resolution);
-	dump_lic_tracker(lt);
+	lic_tracker_p lt = init_lic_tracker(backfill_resolution); //Step Function
+	dump_lic_tracker(lt); //Step Function
+
+	printf("BACKFILL ALGORITHM"\n);
 
 // main cycle
 	while (1) {
@@ -2095,7 +2097,7 @@ next_task:
 
 		time_t start_lic = -1; /* no need for initialization */
 		do {
-		  j = backfill_licenses_test_job(lt, job_ptr, &start_res);
+		  j = backfill_licenses_test_job(lt, job_ptr, &start_res); //Step Function
 		  if (j != SLURM_SUCCESS) {
         if (debug_flags & DEBUG_FLAG_BACKFILL)
           info("backfill: %pJ license defer",
@@ -2537,7 +2539,7 @@ skip_start:
 
 			  /* update licenses tracker */
 
-			  backfill_licenses_alloc_job(lt, job_ptr, job_ptr->start_time, job_ptr->end_time);
+			  backfill_licenses_alloc_job(lt, job_ptr, job_ptr->start_time, job_ptr->end_time); //Step Function
 
 				/* Clear assumed rejected array status */
 				reject_array_job = NULL;
@@ -2667,7 +2669,7 @@ skip_start:
 		    (job_ptr->state_reason != WAIT_BURST_BUFFER_STAGING) &&
 		    (_test_resv_overlap(node_space, avail_bitmap,
 				       start_time, end_reserve)
-		      || backfill_licenses_overlap(lt, job_ptr, job_ptr->start_time)
+		      || backfill_licenses_overlap(lt, job_ptr, job_ptr->start_time) //Step Function
 		    )
 		   ) {
 			/* This job overlaps with an existing reservation for
@@ -2778,7 +2780,7 @@ skip_start:
 		/*AG TODO: figure out if the above conditions also apply to licenses.
 		 *         For now we won't apply them
 		 */
-		backfill_licenses_alloc_job(lt, job_ptr, start_time, end_reserve);
+		backfill_licenses_alloc_job(lt, job_ptr, start_time, end_reserve); //Step Function
 
 		if (debug_flags & DEBUG_FLAG_BACKFILL_MAP)
 			_dump_node_space_table(node_space);
@@ -2813,7 +2815,7 @@ skip_start:
 NEXT_JOB:;
 	}
 
-	destroy_lic_tracker(lt);
+	destroy_lic_tracker(lt); //Step Function
 
 	/* Restore preemption state if needed. */
 	_restore_preempt_state(job_ptr, &tmp_preempt_start_time,
