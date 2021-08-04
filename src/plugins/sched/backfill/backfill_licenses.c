@@ -121,6 +121,7 @@ init_lic_tracker(int resolution) {
       entry->total = license_entry->total;
       entry->ut = ut_int_create(license_entry->used > license_entry->r_used
           ? license_entry->used : license_entry->r_used);
+      //printf("init_lic_tracker: entry->name = %s, entry->total = %d, entry->ut = (Max(used = %d, r_used = %d))\n", entry->name, entry->total, license_entry->used, license_entry->r_used);
       list_push(res->tracker, entry);
     }
     list_iterator_destroy(iter);
