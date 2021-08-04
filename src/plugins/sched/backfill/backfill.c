@@ -1616,8 +1616,6 @@ static int _attempt_backfill(void)
 	lic_tracker_p lt = init_lic_tracker(backfill_resolution); //Step Function
 	dump_lic_tracker(lt); //Step Function
 
-	//printf("BACKFILL ALGORITHM\n"); //CLP Added
-
 // main cycle
 	while (1) {
 		uint32_t bf_array_task_id, bf_job_priority,

@@ -73,8 +73,6 @@ int init( void )
 		return SLURM_ERROR;
 	}
 
-	printf("Create backfill agent\n"); //CLP ADDED
-
 	/* since we do a join on this later we don't make it detached */
 	slurm_thread_create(&backfill_thread, backfill_agent, NULL);
 

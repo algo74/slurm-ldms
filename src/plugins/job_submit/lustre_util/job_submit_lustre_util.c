@@ -413,9 +413,6 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
 		      char **err_msg)
 {
 	// NOTE: no job id actually exists yet (=NO_VAL)
-  printf("printf: Job is submitted ZYX\n"); //CLP Added
-  fprintf(stdout, "stdout: Job is submitted ZYX\n"); //CLP Added
-  fprintf(stderr, "stderr: Job is submitted ZYX\n"); //CLP Added
 
   // get variety_id
   char *variety_id = _get_variety_id(job_desc, submit_uid);
