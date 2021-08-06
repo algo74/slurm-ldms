@@ -3918,6 +3918,34 @@ static char **_build_env(job_record_t *job_ptr, bool is_epilog)
 	setenvf(&my_env, "SLURM_JOB_ID", "%u", job_ptr->job_id);
 	if (job_ptr->licenses)
 		setenvf(&my_env, "SLURM_JOB_LICENSES", "%s", job_ptr->licenses);
+	ListIterator j_iter = list_iterator_create(job_ptr->license_list); //CLP ADDED
+	licenses_t *license_entry; //CLP ADDED
+	license_entry = list_next(j_iter); //CLP ADDED
+	if(license_entry) { //CLP ADDED
+		setenvf(&my_env, "SLURM_JOB_LICENSE1_TOTAL", "%u", license_entry->total); //CLP ADDED
+		license_entry = list_next(j_iter); //CLP ADDED
+		if(license_entry) { //CLP ADDED
+			setenvf(&my_env, "SLURM_JOB_LICENSE2_TOTAL", "%u", license_entry->total); //CLP ADDED
+			license_entry = list_next(j_iter); //CLP ADDED
+			if(license_entry) { //CLP ADDED
+				setenvf(&my_env, "SLURM_JOB_LICENSE3_TOTAL", "%u", license_entry->total); //CLP ADDED
+			}
+		}
+	}
+	ListIterator iter = list_iterator_create(license_list);//CLP ADDED
+	license_entry = list_next(iter); //CLP ADDED
+	if(license_entry) { //CLP ADDED
+		setenvf(&my_env, "SLURM_JOB_LICENSE1_G_TOTAL", "%u", license_entry->total); //CLP ADDED
+		license_entry = list_next(iter); //CLP ADDED
+		if(license_entry) { //CLP ADDED
+			setenvf(&my_env, "SLURM_JOB_LICENSE2_G_TOTAL", "%u", license_entry->total); //CLP ADDED
+			license_entry = list_next(iter); //CLP ADDED
+			if(license_entry) { //CLP ADDED
+				setenvf(&my_env, "SLURM_JOB_LICENSE3_G_TOTAL", "%u", license_entry->total); //CLP ADDED
+			}
+		}
+	}
+	
 	setenvf(&my_env, "SLURM_JOB_NAME", "%s", job_ptr->name);
 	setenvf(&my_env, "SLURM_JOB_NODELIST", "%s", job_ptr->nodes);
 	if (job_ptr->part_ptr) {
@@ -3935,7 +3963,7 @@ static char **_build_env(job_record_t *job_ptr, bool is_epilog)
 		setenvf(&my_env, "SLURM_WCKEY", "%s", job_ptr->wckey);
 	}
 	setenvf(&my_env, "SLURM_NODE_CNT", "%u", job_ptr->node_cnt); //CLP ADDED
-	setenvf(&my_env, "SLURM_SUBMIT_TIME", "%u", job_ptr->details->submit_time); //CLP ADDED
+	setenvf(&my_env, "SLURM_SUBMIT_TIME", "%lu", job_ptr->details->submit_time); //CLP ADDED
 	/*AG set up variety_id variable */
 	static const char VARIETY_ID_ENV_NAME[] = "LDMS_VARIETY_ID";
 	static const char pref[] = "variety_id=";
