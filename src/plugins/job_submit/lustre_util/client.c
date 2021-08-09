@@ -10,6 +10,7 @@
 #include "cJSON.h"
 
 #include "client.h"
+#include <slurm/slurm.h> //CLP Added
 
 #define MAX 1024
 //#define SA struct sockaddr
