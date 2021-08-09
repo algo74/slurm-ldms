@@ -27,21 +27,21 @@ send_receive(int sockfd, cJSON *req)
   count++;
   if (req == NULL) {
     fprintf(stderr, "Error: empty request JSON\n");
-    debug2(stderr, "Error: empty request JSON\n"); //CLP Added
+    debug2("Error: empty request JSON\n"); //CLP Added
     //TODO: process error
     goto Cleanup01;
   }
   snprintf(req_id, ID_LEN, "%d", count);
   if (cJSON_AddStringToObject(req, "req_id", req_id) == NULL) {
     fprintf(stderr, "Error adding req_id\n");
-    debug2(stderr, "Error adding req_id\n"); //CLP Added
+    debug2("Error adding req_id\n"); //CLP Added
     //TODO: process error
     goto Cleanup01;
   }
   char *req_str = cJSON_PrintUnformatted(req);
   if (req_str == NULL) {
     fprintf(stderr, "Failed to print JSON.\n");
-    debug2(stderr, "Failed to print JSON.\n"); //CLP Added
+    debug2("Failed to print JSON.\n"); //CLP Added
     //TODO: process error
     goto Cleanup01;
   }
@@ -59,23 +59,23 @@ send_receive(int sockfd, cJSON *req)
       const char *error_ptr = cJSON_GetErrorPtr();
       if (error_ptr != NULL) {
         fprintf(stderr, "Error before: %s\n", error_ptr);
-        debug2(stderr, "Error before: %s\n", error_ptr); //CLP Added
+        debug2("Error before: %s\n", error_ptr); //CLP Added
       } else {
         fprintf(stderr, "Error parsing\n");
-        debug2(stderr, "Error parsing\n"); //CLP Added
+        debug2("Error parsing\n"); //CLP Added
       }
       break;
     }
     cJSON* id = cJSON_GetObjectItem(resp, "req_id");
     if (id == NULL || !cJSON_IsString(id) || id->valuestring == NULL) {
       fprintf(stderr, "Error: no id\n");
-      debug2(stderr, "Error: no id\n"); //CLP Added
+      debug2("Error: no id\n"); //CLP Added
       cJSON_Delete(resp);
       break;
     }
     if (strcmp(id->valuestring, req_id) != 0) {
       fprintf(stderr, "Error: wrong id: sent \"%s\" got \"%s\"\n", req_id, id->valuestring);
-      debug2(stderr, "Error: wrong id: sent \"%s\" got \"%s\"\n", req_id, id->valuestring); //CLP Added
+      debug2("Error: wrong id: sent \"%s\" got \"%s\"\n", req_id, id->valuestring); //CLP Added
       int resp_id = atoi(id->valuestring);
       cJSON_Delete(resp);
       if(resp_id && resp_id < count) {
