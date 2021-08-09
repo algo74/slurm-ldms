@@ -312,7 +312,7 @@ static void _set_job_time_limit(job_record_t *job_ptr, uint32_t new_limit)
 	/* reset flag if we have a NO_VAL time_limit */
 	if (job_ptr->time_limit == NO_VAL)
 		job_ptr->limit_set.time = 0;
-
+	debug3("%s: Job %pJ: job_ptr->time_limit = %d", __func__, job_ptr, job_ptr->time_limit); //CLP Added
 }
 
 /*
@@ -1492,7 +1492,6 @@ static bool _job_exceeds_max_bf_param(job_record_t *job_ptr,
 
 static int _attempt_backfill(void)
 {
-	debug3("INVOKING _attempt_backfill\n");
 	DEF_TIMERS;
 	List job_queue;
 	job_queue_rec_t *job_queue_rec;
@@ -2081,7 +2080,7 @@ next_task:
 			job_ptr->part_ptr = part_ptr;
 		}
 
-
+		debug3("%s: Job %pJ: start_res = MAX(%ld, %ld)", __func__, job_ptr, later_start, pack_time); //CLP Added
 		start_res = MAX(later_start, pack_time);
 		resv_end = 0;
 		later_start = 0;
@@ -2124,6 +2123,7 @@ next_task:
         slurm_make_time_str(&start_lic, begin_buf2, sizeof(begin_buf2));
         slurm_make_time_str(&start_res, begin_buf, sizeof(begin_buf));
 
+	debug3("%s: Job %pJ: start_lic = %ld, start_res = %ld", __func__, job_ptr, start_lic, start_res); //CLP Added
         debug3("  backfill: times from tests for %pJ: license: %s, nodes: %s.",
                                    job_ptr,  begin_buf2,  begin_buf);
       };
