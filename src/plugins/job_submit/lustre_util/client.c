@@ -10,7 +10,6 @@
 #include "cJSON.h"
 
 #include "client.h"
-#include <slurm/slurm.h> //CLP Added
 
 #define MAX 1024
 //#define SA struct sockaddr
@@ -28,21 +27,18 @@ send_receive(int sockfd, cJSON *req)
   count++;
   if (req == NULL) {
     fprintf(stderr, "Error: empty request JSON\n");
-    debug2("Error: empty request JSON\n"); //CLP Added
     //TODO: process error
     goto Cleanup01;
   }
   snprintf(req_id, ID_LEN, "%d", count);
   if (cJSON_AddStringToObject(req, "req_id", req_id) == NULL) {
     fprintf(stderr, "Error adding req_id\n");
-    debug2("Error adding req_id\n"); //CLP Added
     //TODO: process error
     goto Cleanup01;
   }
   char *req_str = cJSON_PrintUnformatted(req);
   if (req_str == NULL) {
     fprintf(stderr, "Failed to print JSON.\n");
-    debug2("Failed to print JSON.\n"); //CLP Added
     //TODO: process error
     goto Cleanup01;
   }
@@ -54,29 +50,24 @@ send_receive(int sockfd, cJSON *req)
     bzero(buff, sizeof(buff));
     read(sockfd, buff, MAX);
     printf("From Server : %s\n", buff);
-    debug2("From Server : %s\n", buff); //CLP Added
     cJSON *resp = cJSON_Parse(buff);
     if (resp == NULL) {
       const char *error_ptr = cJSON_GetErrorPtr();
       if (error_ptr != NULL) {
         fprintf(stderr, "Error before: %s\n", error_ptr);
-        debug2("Error before: %s\n", error_ptr); //CLP Added
       } else {
         fprintf(stderr, "Error parsing\n");
-        debug2("Error parsing\n"); //CLP Added
       }
       break;
     }
     cJSON* id = cJSON_GetObjectItem(resp, "req_id");
     if (id == NULL || !cJSON_IsString(id) || id->valuestring == NULL) {
       fprintf(stderr, "Error: no id\n");
-      debug2("Error: no id\n"); //CLP Added
       cJSON_Delete(resp);
       break;
     }
     if (strcmp(id->valuestring, req_id) != 0) {
       fprintf(stderr, "Error: wrong id: sent \"%s\" got \"%s\"\n", req_id, id->valuestring);
-      debug2("Error: wrong id: sent \"%s\" got \"%s\"\n", req_id, id->valuestring); //CLP Added
       int resp_id = atoi(id->valuestring);
       cJSON_Delete(resp);
       if(resp_id && resp_id < count) {
@@ -108,7 +99,6 @@ int connect_to_simple_server(const char *addr, const char *port) {
   int ret = getaddrinfo(addr, port, &hint, &addrs);
   if (ret != 0) {
     printf("Could not resolve address\n");
-    debug2("Could not resolve address\n"); //CLP Added
     return -1;
 // <------
   }
@@ -135,14 +125,12 @@ int connect_to_simple_server(const char *addr, const char *port) {
         break;
     }
     printf("IP address: %s\n", s);
-    debug2("IP address: %s\n", s); //CLP Added
     free(s);
 
     // create socket
     sockfd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
     if (sockfd == -1) {
       printf("Could not create socket\n");
-      debug2("Could not create socket\n"); //CLP Added
     } else {
       if (connect(sockfd, addr->ai_addr, addr->ai_addrlen) == 0) {
         // connected
@@ -154,7 +142,6 @@ int connect_to_simple_server(const char *addr, const char *port) {
     }
     if (addr->ai_next == NULL) {
       printf("connect error\n");
-      debug2("connect error\n"); //CLP Added
     }
   }
 
