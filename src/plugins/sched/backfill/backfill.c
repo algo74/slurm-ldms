@@ -1492,7 +1492,6 @@ static bool _job_exceeds_max_bf_param(job_record_t *job_ptr,
 
 static int _attempt_backfill(void)
 {
-	debug2("TESTING BACKFILL DEBUG STATEMENTS\n");
 	DEF_TIMERS;
 	List job_queue;
 	job_queue_rec_t *job_queue_rec;
