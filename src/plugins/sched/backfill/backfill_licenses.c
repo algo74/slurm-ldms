@@ -108,7 +108,7 @@ init_lic_tracker(int resolution) {
   lic_tracker_p res = NULL;
   job_record_t *tmp_job_ptr;
 
-  job_record_t *tmp_job_ptr_; //CLP ADDED  
+  /*job_record_t *tmp_job_ptr_; //CLP ADDED  
   ListIterator job_iterator_ = list_iterator_create(job_list); //CLP ADDED
   while ((tmp_job_ptr_ = list_next(job_iterator_))) { //CLP ADDED
 
@@ -124,7 +124,7 @@ init_lic_tracker(int resolution) {
     }
     list_iterator_destroy(j_iter);
   }
-  list_iterator_destroy(job_iterator_);
+  list_iterator_destroy(job_iterator_);*/
 
   /* create licenses tracker */
   slurm_mutex_lock(&license_mutex);
