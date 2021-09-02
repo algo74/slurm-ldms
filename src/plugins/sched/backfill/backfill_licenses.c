@@ -112,6 +112,15 @@ init_lic_tracker(int resolution) {
   ListIterator job_iterator_ = list_iterator_create(job_list); //CLP ADDED
   while ((tmp_job_ptr_ = list_next(job_iterator_))) { //CLP ADDED
 
+    if (!IS_JOB_RUNNING(tmp_job_ptr_) &&
+        !IS_JOB_SUSPENDED(tmp_job_ptr_))
+      continue;
+    if (tmp_job_ptr_->license_list == NULL) {
+      debug3("%s: %pJ has NULL license list -- skipping",
+            __func__, tmp_job_ptr_);
+      continue;
+    }
+
     ListIterator j_iter = list_iterator_create(tmp_job_ptr_->license_list); //CLP ADDED
     licenses_t *license_entry; //CLP ADDED
     uint32_t total = 0;
