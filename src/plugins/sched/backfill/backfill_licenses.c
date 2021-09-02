@@ -122,7 +122,9 @@ init_lic_tracker(int resolution) {
         total += license_entry->total; //CLP ADDED
       }
     }
+    list_iterator_destroy(j_iter);
   }
+  list_iterator_destroy(job_iterator_);
 
   /* create licenses tracker */
   slurm_mutex_lock(&license_mutex);
