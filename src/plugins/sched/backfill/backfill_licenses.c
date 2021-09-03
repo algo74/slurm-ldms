@@ -76,6 +76,7 @@ void lt_return_lic(lic_tracker_p lt, job_record_t *job_ptr) {
   licenses_t *license_entry;
   lt_entry_t *lt_entry;
   while ((license_entry = list_next(j_iter))) {
+    debug3("%s: license_entry->name = %s, license_entry->total = %d", __func__, license_entry->name, license_entry->total); //CLP Added
     lt_entry = list_find_first(lt->tracker, _lt_find_lic_name, license_entry->name);
     if (lt_entry) {
       // returning a little
@@ -108,10 +109,13 @@ init_lic_tracker(int resolution) {
   lic_tracker_p res = NULL;
   job_record_t *tmp_job_ptr;
 
-  job_record_t *tmp_job_ptr_; //CLP ADDED  
+  /*job_record_t *tmp_job_ptr_; //CLP ADDED  
   ListIterator job_iterator_ = list_iterator_create(job_list); //CLP ADDED
   while ((tmp_job_ptr_ = list_next(job_iterator_))) { //CLP ADDED
 
+    if (!IS_JOB_RUNNING(tmp_job_ptr_) &&
+        !IS_JOB_SUSPENDED(tmp_job_ptr_))
+      continue;
     if (tmp_job_ptr_->license_list == NULL) {
       debug3("%s: %pJ has NULL license list -- skipping",
             __func__, tmp_job_ptr_);
@@ -123,14 +127,14 @@ init_lic_tracker(int resolution) {
     uint32_t total = 0;
     while ((license_entry = list_next(j_iter))) { //CLP ADDED
       debug3("%s: license_entry->name = %s, license_entry->total = %d", __func__, license_entry->name, license_entry->total); //CLP Added
-      /*if(strcmp(license_entry->name, "lustre") == 0) //CLP ADDED
-      {
-        total += license_entry->total; //CLP ADDED
-      }*/
+      //if(strcmp(license_entry->name, "lustre") == 0) //CLP ADDED
+      //{
+      //  total += license_entry->total; //CLP ADDED
+      //}
     }
     list_iterator_destroy(j_iter);
   }
-  list_iterator_destroy(job_iterator_);
+  list_iterator_destroy(job_iterator_);*/
 
   /* create licenses tracker */
   slurm_mutex_lock(&license_mutex);
@@ -169,11 +173,6 @@ init_lic_tracker(int resolution) {
             __func__, tmp_job_ptr);
       continue;
     }
-    ListIterator j_iter1 = list_iterator_create(tmp_job_ptr->license_list);
-    licenses_t *license_entry;
-    while ((license_entry = list_next(j_iter1))) {
-      debug3("%s: license_entry->name = %s, license_entry->total = %d", __func__, license_entry->name, license_entry->total); //CLP Added
-    }
     time_t end_time = tmp_job_ptr->end_time;
     if (end_time == 0) {
       error("%s: Active %pJ has zero end_time",
@@ -184,6 +183,13 @@ init_lic_tracker(int resolution) {
       debug3("%s: %pJ might be finish -- not skipping for now",
             __func__, tmp_job_ptr);
     }
+    ListIterator j_iter = list_iterator_create(tmp_job_ptr->license_list); //CLP ADDED
+    licenses_t *license_entry; //CLP ADDED
+    while ((license_entry = list_next(j_iter))) { //CLP ADDED
+      debug3("%s: license_entry->name = %s, license_entry->total = %d", __func__, license_entry->name, license_entry->total); //CLP Added
+    }
+    list_iterator_destroy(j_iter); //CLP ADDED
+
     lt_return_lic(res, tmp_job_ptr);
   }
   list_iterator_destroy(job_iterator);
