@@ -97,6 +97,7 @@ ut_int_add_usage(utracker_int_t ut,
 void
 ut_int_remove_till_end(utracker_int_t ut,
                       time_t start, int usage) {
+  debug3("%s: usage = %d", __func__, usage); //CLP Added
   xassert(start>0);
   if (usage == 0)
     // do nothing
