@@ -112,9 +112,6 @@ init_lic_tracker(int resolution) {
   ListIterator job_iterator_ = list_iterator_create(job_list); //CLP ADDED
   while ((tmp_job_ptr_ = list_next(job_iterator_))) { //CLP ADDED
 
-    if (!IS_JOB_RUNNING(tmp_job_ptr_) &&
-        !IS_JOB_SUSPENDED(tmp_job_ptr_))
-      continue;
     if (tmp_job_ptr_->license_list == NULL) {
       debug3("%s: %pJ has NULL license list -- skipping",
             __func__, tmp_job_ptr_);
@@ -171,6 +168,11 @@ init_lic_tracker(int resolution) {
       debug3("%s: %pJ has NULL license list -- skipping",
             __func__, tmp_job_ptr);
       continue;
+    }
+    ListIterator j_iter1 = list_iterator_create(tmp_job_ptr->license_list);
+    licenses_t *license_entry;
+    while ((license_entry = list_next(j_iter1))) {
+      debug3("%s: license_entry->name = %s, license_entry->total = %d", __func__, license_entry->name, license_entry->total); //CLP Added
     }
     time_t end_time = tmp_job_ptr->end_time;
     if (end_time == 0) {
