@@ -43,4 +43,6 @@ int backfill_licenses_overlap(lic_tracker_p lt, job_record_t *job_ptr, time_t wh
 int backfill_licenses_alloc_job(lic_tracker_p lt, job_record_t *job_ptr,
                                 time_t start, time_t end);
 
+int sort_int_list(void *x, void *y); //CLP ADDED
+
 #endif /* SRC_PLUGINS_SCHED_BACKFILL_BACKFILL_LICENSES_H_ */

@@ -100,7 +100,18 @@ destroy_lic_tracker(lic_tracker_p lt) {
   xfree(lt);
 }
 
+int sort_int_list(void *x, void *y) //CLP ADDED
+{
+  float* _x = (float*) x;
+  float* _y = (float*) y;
+  if(*_x <= *_y)
+  {
+    return 1;
+  } else {
+    return -1;
+  }
 
+}
 
 lic_tracker_p
 init_lic_tracker(int resolution) {
@@ -108,6 +119,8 @@ init_lic_tracker(int resolution) {
   ListIterator iter;
   lic_tracker_p res = NULL;
   job_record_t *tmp_job_ptr;
+
+  List tmp_list = list_create(NULL); //CLP ADDED 
 
   job_record_t *tmp_job_ptr_; //CLP ADDED  
   ListIterator job_iterator_ = list_iterator_create(job_list); //CLP ADDED
@@ -124,17 +137,26 @@ init_lic_tracker(int resolution) {
 
     ListIterator j_iter = list_iterator_create(tmp_job_ptr_->license_list); //CLP ADDED
     licenses_t *license_entry; //CLP ADDED
-    uint32_t total = 0;
     while ((license_entry = list_next(j_iter))) { //CLP ADDED
-      debug3("%s: license_entry->name = %s, license_entry->total = %d, total = 0", __func__, license_entry->name, license_entry->total); //CLP Added
-      //if(strcmp(license_entry->name, "lustre") == 0) //CLP ADDED
-      //{
-      //  total += license_entry->total; //CLP ADDED
-      //}
+      debug3("%s: license_entry->name = %s, license_entry->total = %d, tmp_job_ptr_->node_cnt = %d", __func__, license_entry->name, license_entry->total, tmp_job_ptr_->node_cnt); //CLP Added
+      if(strcmp(license_entry->name, "lustre") == 0) //CLP ADDED
+      {
+        float* temp = (float*) xmalloc (sizeof(float)); //CLP ADDED
+        *temp = (float) license_entry->total/tmp_job_ptr_->node_cnt; //CLP ADDED
+        list_push(tmp_list, temp); //CLP ADDED
+      }    
     }
-    list_iterator_destroy(j_iter);
+    list_iterator_destroy(j_iter); //CLP ADDED
   }
-  list_iterator_destroy(job_iterator_);
+  list_iterator_destroy(job_iterator_); //CLP ADDED
+
+  list_sort(tmp_list, sort_int_list); //CLP ADDED
+
+  ListIterator k_iter = list_iterator_create(tmp_list); //CLP ADDED
+  float* k_entry; //CLP ADDED
+  while ((k_entry = list_next(k_iter))) { //CLP ADDED
+    debug3("%s: k_entry = %.2f, ", __func__, *k_entry); //CLP Added      
+  }
 
   /* create licenses tracker */
   slurm_mutex_lock(&license_mutex);
