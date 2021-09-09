@@ -124,6 +124,7 @@ init_lic_tracker(int resolution) {
 
   job_record_t *tmp_job_ptr_; //CLP ADDED  
   ListIterator job_iterator_ = list_iterator_create(job_list); //CLP ADDED
+  unsigned int size = 0; //CLP ADDED
   while ((tmp_job_ptr_ = list_next(job_iterator_))) { //CLP ADDED
 
     if (!IS_JOB_RUNNING(tmp_job_ptr_) &&
@@ -144,6 +145,7 @@ init_lic_tracker(int resolution) {
         float* temp = (float*) xmalloc (sizeof(float)); //CLP ADDED
         *temp = (float) license_entry->total/tmp_job_ptr_->node_cnt; //CLP ADDED
         list_push(tmp_list, temp); //CLP ADDED
+        size += 1; //CLP ADDED
       }    
     }
     list_iterator_destroy(j_iter); //CLP ADDED
@@ -154,9 +156,14 @@ init_lic_tracker(int resolution) {
 
   ListIterator k_iter = list_iterator_create(tmp_list); //CLP ADDED
   float* k_entry; //CLP ADDED
-  while ((k_entry = list_next(k_iter))) { //CLP ADDED
-    debug3("%s: k_entry = %.2f, ", __func__, *k_entry); //CLP Added      
+  unsigned int pos = 0; //CLP ADDED
+  unsigned int med_pos = (unsigned int) size/2; //CLP ADDED
+  if(size%2 != 0) med_pos += 1; //CLP ADDED 
+  while ((pos < med_pos) && (k_entry = list_next(k_iter))) { //CLP ADDED
+    debug3("%s: k_entry = %.2f, ", __func__, *k_entry); //CLP Added 
+    pos += 1; //CLP Added    
   }
+  float r_star = *k_entry; //CLP Added
 
   /* create licenses tracker */
   slurm_mutex_lock(&license_mutex);
