@@ -2095,6 +2095,8 @@ next_task:
 
 		time_t start_lic = -1; /* no need for initialization */
 		do {
+                  char * node_list_ = bitmap2node_name(avail_bitmap);
+	          debug3("%s: Available Nodes:%s", __func__, node_list_);
 		  j = backfill_licenses_test_job(lt, job_ptr, &start_res); //Step Function
 		  if (j != SLURM_SUCCESS) {
         if (debug_flags & DEBUG_FLAG_BACKFILL)
