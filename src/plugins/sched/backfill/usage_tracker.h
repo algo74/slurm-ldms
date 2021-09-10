@@ -28,6 +28,7 @@ void ut_int_remove_till_end(utracker_int_t ut,
                       time_t start, int usage);
 
 utracker_int_t ut_int_create(int start_value);
+utracker_int_t ut_int_create_(int start_value, float r_star); //CLP ADDED
 
 void ut_int_destroy(utracker_int_t ut);
 

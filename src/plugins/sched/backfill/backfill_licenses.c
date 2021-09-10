@@ -156,14 +156,15 @@ init_lic_tracker(int resolution) {
 
   ListIterator k_iter = list_iterator_create(tmp_list); //CLP ADDED
   float* k_entry; //CLP ADDED
+  float r_star = 0; //CLP ADDED
   unsigned int pos = 0; //CLP ADDED
   unsigned int med_pos = (unsigned int) size/2; //CLP ADDED
   if(size%2 != 0) med_pos += 1; //CLP ADDED 
   while ((pos < med_pos) && (k_entry = list_next(k_iter))) { //CLP ADDED
     debug3("%s: k_entry = %.2f, ", __func__, *k_entry); //CLP Added 
-    pos += 1; //CLP Added    
+    pos += 1; //CLP Added 
+    r_star = *k_entry; //CLP Added   
   }
-  float r_star = *k_entry; //CLP Added
 
   /* create licenses tracker */
   slurm_mutex_lock(&license_mutex);
@@ -176,9 +177,11 @@ init_lic_tracker(int resolution) {
       lt_entry_t *entry = xmalloc(sizeof(lt_entry_t));
       entry->name = xstrdup(license_entry->name);
       entry->total = license_entry->total;
-      entry->ut = ut_int_create(license_entry->used > license_entry->r_used
-          ? license_entry->used : license_entry->r_used);
-      debug3("%s: entry->name = %s, entry->total = %d, entry->ut = (MAX(used = %d, r_used = %d)", __func__, entry->name, entry->total, license_entry->used, license_entry->r_used); //CLP Added
+      //entry->ut = ut_int_create(license_entry->used > license_entry->r_used
+      //    ? license_entry->used : license_entry->r_used);
+      entry->ut = ut_int_create_(license_entry->used > license_entry->r_used
+          ? license_entry->used : license_entry->r_used, r_star); //CLP ADDED
+      debug3("%s: entry->name = %s, entry->total = %d, entry->ut = (MAX(used = %d, r_used = %d), r_star = %.2f", __func__, entry->name, entry->total, license_entry->used, license_entry->r_used, r_star); //CLP Added
       list_push(res->tracker, entry);
     }
     list_iterator_destroy(iter);

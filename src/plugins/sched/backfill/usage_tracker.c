@@ -22,6 +22,10 @@
 typedef struct ut_int_struct {
   time_t start;
   int value;
+  float r_star; //CLP ADDED
+  float r_star_bar; //CLP ADDED
+  int n_avail; //CLP ADDED
+  int n_req; //CLP ADDED
 } ut_int_item_t;
 
 
@@ -37,6 +41,22 @@ _create_item(time_t start, int value) {
   ut_int_item_t *item = xmalloc(sizeof(ut_int_item_t));
   item->start = start;
   item->value = value;
+  item->r_star = 0; //CLP ADDED
+  item->r_star_bar = 0; //CLP ADDED
+  item->n_avail = 0; //CLP ADDED
+  item->n_req = 0; //CLP ADDED
+  return item;
+}
+
+static ut_int_item_t*
+_create_item_(time_t start, int value, float r_star) { //CLP ADDED
+  ut_int_item_t *item = xmalloc(sizeof(ut_int_item_t));
+  item->start = start;
+  item->value = value;
+  item->r_star = r_star; //CLP ADDED
+  item->r_star_bar = 0; //CLP ADDED
+  item->n_avail = 0; //CLP ADDED
+  item->n_req = 0; //CLP ADDED
   return item;
 }
 
@@ -181,6 +201,12 @@ ut_int_create(int start_value){
   return list;
 }
 
+utracker_int_t
+ut_int_create_(int start_value, float r_star){ //CLP ADDED
+  List list = list_create(_delete_item);
+  list_append(list, _create_item_((time_t)-1, start_value, r_star)); //CLP ADDED
+  return list;
+}
 
 void
 ut_int_destroy(utracker_int_t ut) {
