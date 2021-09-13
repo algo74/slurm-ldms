@@ -45,4 +45,6 @@ int backfill_licenses_alloc_job(lic_tracker_p lt, job_record_t *job_ptr,
 
 int sort_int_list(void *x, void *y); //CLP ADDED
 
+int bitmap2node_avail (bitstr_t *bitmap); //CLP ADDED
+
 #endif /* SRC_PLUGINS_SCHED_BACKFILL_BACKFILL_LICENSES_H_ */

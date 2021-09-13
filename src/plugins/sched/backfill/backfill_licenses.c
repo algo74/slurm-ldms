@@ -344,3 +344,33 @@ backfill_licenses_alloc_job(lic_tracker_p lt,
   dump_lic_tracker(lt);
   return SLURM_SUCCESS;
 }
+
+int bitmap2node_avail (bitstr_t *bitmap) //CLP ADDED
+{
+	int i, first, last, node_avail;
+	//hostlist_t hl;
+
+	if (bitmap == NULL)
+		return 0;
+
+	first = bit_ffs(bitmap);
+	if (first == -1)
+		return 0;
+
+	last  = bit_fls(bitmap);
+        node_avail = last - first;
+	//hl = hostlist_create(NULL);
+	for (i = first; i <= last; i++) {
+		if (bit_test(bitmap, i) == 0)
+		{
+			node_avail -= 1;
+			continue;
+   		}
+		//hostlist_push_host(hl, node_record_table_ptr[i].name);
+                debug3("%s: Node %d available", __func__, i);
+	}
+	//return hl;
+        debug3("%s: node_avail = %d", __func__, node_avail);
+        return node_avail;
+
+}
