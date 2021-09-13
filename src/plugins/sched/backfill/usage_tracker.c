@@ -163,12 +163,17 @@ ut_int_remove_till_end(utracker_int_t ut,
 time_t
 ut_int_when_below(utracker_int_t ut,
                    time_t after, time_t duration,
-                   int max_value){
+//                   int max_value){
+		   int max_value,
+                   bitstr_t *bitmap){
+
   xassert(after>0);
   xassert(duration>0);
   utiterator_t it = list_iterator_create(ut);
   ut_int_item_t *prev;
   ut_int_item_t *next = list_next(it);
+  next->n_avail = bitmap2node_avail(bitmap); //CLP Added
+  
   do {
     prev = next;
     next = list_next(it);
@@ -234,3 +239,4 @@ ut_int_dump(utracker_int_t ut) {
   list_for_each(ut, _dump_item, NULL);
   log("--------------------------------");
 }
+

@@ -2098,7 +2098,8 @@ next_task:
                   char * node_list_ = bitmap2node_name(avail_bitmap); //CLP ADDED
 	          debug3("%s: Available Nodes:%s", __func__, node_list_); //CLP ADDED
                   bitmap2node_avail(avail_bitmap); //CLP ADDED
-		  j = backfill_licenses_test_job(lt, job_ptr, &start_res); //Step Function
+		  //j = backfill_licenses_test_job(lt, job_ptr, &start_res); //Step Function
+                  j = backfill_licenses_test_job(lt, job_ptr, &start_res, avail_bitmap); //CLP ADDED
 		  if (j != SLURM_SUCCESS) {
         if (debug_flags & DEBUG_FLAG_BACKFILL)
           info("backfill: %pJ license defer",

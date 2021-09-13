@@ -227,7 +227,8 @@ init_lic_tracker(int resolution) {
 
 int backfill_licenses_overlap(lic_tracker_p lt, job_record_t *job_ptr, time_t when) {
   time_t check = when;
-  backfill_licenses_test_job(lt, job_ptr, &check);
+  //backfill_licenses_test_job(lt, job_ptr, &check);
+  backfill_licenses_test_job(lt, job_ptr, &check, NULL); //CLP ADDED
   int res = check != when;
   if (res) {
     debug3("%s: %pJ overlaps; scheduled: %ld, allowed: %ld",
@@ -237,8 +238,8 @@ int backfill_licenses_overlap(lic_tracker_p lt, job_record_t *job_ptr, time_t wh
   return res;
 }
 
-
-int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr, time_t *when){
+//int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr, time_t *when){
+int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr, time_t *when, bitstr_t *avail_bitmap){ //CLP ADDED
   /*AG TODO: implement reservations */
   /*AG FIXME: should probably use job_ptr->min_time if present */
   /*AG TODO: refactor algorithm */
@@ -276,8 +277,10 @@ int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr, time_t *
       lt_entry = list_find_first(lt->tracker, _lt_find_lic_name, license_entry->name);
       if (lt_entry) {
 	debug3("%s: Job %pJ: license %s: lt_entry->total = %d, license_entry->total = %d", __func__, job_ptr, license_entry->name, lt_entry->total, license_entry->total); //CLP Added
+        
         curr_start = ut_int_when_below(lt_entry->ut, prev_start, duration,
-            lt_entry->total - license_entry->total + 1);
+            //lt_entry->total - license_entry->total + 1);
+            lt_entry->total - license_entry->total + 1, avail_bitmap);
         if (curr_start == -1) {
           error("%s: Job %pJ will never get %d license \"%s\"", __func__, job_ptr,
             license_entry->total, license_entry->name);
@@ -358,7 +361,7 @@ int bitmap2node_avail (bitstr_t *bitmap) //CLP ADDED
 		return 0;
 
 	last  = bit_fls(bitmap);
-        node_avail = last - first;
+        node_avail = last - first + 1;
 	//hl = hostlist_create(NULL);
 	for (i = first; i <= last; i++) {
 		if (bit_test(bitmap, i) == 0)
