@@ -166,7 +166,8 @@ ut_int_when_below(utracker_int_t ut,
   utiterator_t it = list_iterator_create(ut);
   ut_int_item_t *prev;
   ut_int_item_t *next = list_next(it);
-  int n_avail = bitmap2node_avail(bitmap); //CLP Added
+  int n_avail = bitmap2node_avail(bitmap); //CLP ADDED
+  float r_star_bar = next->r_star_bar; //CLP ADDED
   
   do {
     prev = next;
@@ -174,8 +175,8 @@ ut_int_when_below(utracker_int_t ut,
   } while(next && next->start < after);
   while(1) {
     //while(prev->value >= max_value) {
-    while(prev->value >= (max_value - (n_avail * prev->r_star_bar))) {
-      debug3("%s: prev->value = %d, max_value = %d, n_avail * prev->r_star_bar = %.2f", __func__, prev->value, max_value, n_avail * prev->r_star_bar); //CLP Added
+    while(prev->value >= (max_value - (n_avail * r_star_bar))) {
+      debug3("%s: prev->value = %d, max_value = %d, n_avail * r_star_bar = %.2f", __func__, prev->value, max_value, n_avail * r_star_bar); //CLP ADDED
       if (!next) {
         return(-1);
       }
