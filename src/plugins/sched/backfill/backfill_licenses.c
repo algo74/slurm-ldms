@@ -120,7 +120,9 @@ init_lic_tracker(int resolution) {
   lic_tracker_p res = NULL;
   job_record_t *tmp_job_ptr;
 
-  List tmp_list = list_create(NULL); //CLP ADDED 
+  List r_star_list = list_create(NULL); //CLP ADDED 
+  List r_list = list_create(NULL); //CLP ADDED
+  List n_list = list_create(NULL); //CLP ADDED
 
   job_record_t *tmp_job_ptr_; //CLP ADDED  
   ListIterator job_iterator_ = list_iterator_create(job_list); //CLP ADDED
@@ -142,29 +144,52 @@ init_lic_tracker(int resolution) {
       debug3("%s: license_entry->name = %s, license_entry->total = %d, tmp_job_ptr_->node_cnt = %d", __func__, license_entry->name, license_entry->total, tmp_job_ptr_->node_cnt); //CLP Added
       if(strcmp(license_entry->name, "lustre") == 0) //CLP ADDED
       {
-        float* temp = (float*) xmalloc (sizeof(float)); //CLP ADDED
-        *temp = (float) license_entry->total/tmp_job_ptr_->node_cnt; //CLP ADDED
-        list_push(tmp_list, temp); //CLP ADDED
-        size += 1; //CLP ADDED
+        float* r_star_ptr = (float*) xmalloc (sizeof(float)); //CLP ADDED
+        *r_star_ptr = (float) license_entry->total/tmp_job_ptr_->node_cnt; //CLP ADDED
+        uint32_t* r_ptr = (uint32_t*) xmalloc (sizeof(uint32_t)); //CLP ADDED
+        *r_ptr = license_entry->total; //CLP ADDED
+        uint32_t* n_ptr = (uint32_t*) xmalloc (sizeof(uint32_t)); //CLP ADDED
+        *n_ptr = tmp_job_ptr_->node_cnt; //CLP ADDED
+        list_push(r_star_list, r_star_ptr); //CLP ADDED
+        list_push(r_list, r_ptr); //CLP ADDED
+        list_push(n_list, n_ptr); //CLP ADDED
+        size += 1; //CLP ADDED     
       }    
     }
     list_iterator_destroy(j_iter); //CLP ADDED
   }
   list_iterator_destroy(job_iterator_); //CLP ADDED
 
-  list_sort(tmp_list, sort_int_list); //CLP ADDED
+  list_sort(r_star_list, sort_int_list); //CLP ADDED
 
-  ListIterator k_iter = list_iterator_create(tmp_list); //CLP ADDED
-  float* k_entry; //CLP ADDED
+  ListIterator r_star_iter = list_iterator_create(r_star_list); //CLP ADDED
+  float *r_star_entry; //CLP ADDED
   float r_star = 0; //CLP ADDED
   unsigned int pos = 0; //CLP ADDED
   unsigned int med_pos = (unsigned int) size/2; //CLP ADDED
   if(size%2 != 0) med_pos += 1; //CLP ADDED 
-  while ((pos < med_pos) && (k_entry = list_next(k_iter))) { //CLP ADDED
-    debug3("%s: k_entry = %.2f, ", __func__, *k_entry); //CLP Added 
+  while ((pos < med_pos) && (r_star_entry = list_next(r_star_iter))) { //CLP ADDED
+    debug3("%s: r_star_entry = %.2f, ", __func__, *r_star_entry); //CLP Added 
     pos += 1; //CLP Added 
-    r_star = *k_entry; //CLP Added   
+    r_star = *r_star_entry; //CLP Added   
   }
+
+  ListIterator r_iter = list_iterator_create(r_list); //CLP ADDED
+  ListIterator n_iter = list_iterator_create(n_list); //CLP ADDED
+  uint32_t *r_entry; //CLP ADDED
+  uint32_t *n_entry; //CLP ADDED
+  uint32_t r_sum = 0; //CLP ADDED
+  uint32_t n_sum = 0; //CLP ADDED
+  float r_star_bar = 0; //CLP ADDED
+
+  while ((r_entry = list_next(r_iter)) && (n_entry = list_next(n_iter))) { //CLP ADDED
+    if(*r_entry <= (*n_entry * r_star))
+    {
+      r_sum += *r_entry; //CLP ADDED
+      n_sum += *n_entry; //CLP ADDED
+    }
+  }
+  r_star_bar = (float) r_sum/n_sum; //CLP ADDED
 
   /* create licenses tracker */
   slurm_mutex_lock(&license_mutex);
