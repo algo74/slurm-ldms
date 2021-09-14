@@ -189,7 +189,8 @@ init_lic_tracker(int resolution) {
       n_sum += *n_entry; //CLP ADDED
     }
   }
-  r_star_bar = (float) r_sum/n_sum; //CLP ADDED
+  if(n_sum == 0) r_star_bar = 0; //CLP ADDED
+  else r_star_bar = (float) r_sum/n_sum; //CLP ADDED
 
   /* create licenses tracker */
   slurm_mutex_lock(&license_mutex);
