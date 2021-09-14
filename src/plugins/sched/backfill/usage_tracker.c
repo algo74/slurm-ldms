@@ -24,8 +24,6 @@ typedef struct ut_int_struct {
   int value;
   float r_star; //CLP ADDED
   float r_star_bar; //CLP ADDED
-  int n_avail; //CLP ADDED
-  int n_req; //CLP ADDED
 } ut_int_item_t;
 
 
@@ -43,20 +41,16 @@ _create_item(time_t start, int value) {
   item->value = value;
   item->r_star = 0; //CLP ADDED
   item->r_star_bar = 0; //CLP ADDED
-  item->n_avail = 0; //CLP ADDED
-  item->n_req = 0; //CLP ADDED
   return item;
 }
 
 static ut_int_item_t*
-_create_item_(time_t start, int value, float r_star) { //CLP ADDED
+_create_item_(time_t start, int value, float r_star, float r_star_bar) { //CLP ADDED
   ut_int_item_t *item = xmalloc(sizeof(ut_int_item_t));
   item->start = start;
   item->value = value;
   item->r_star = r_star; //CLP ADDED
-  item->r_star_bar = 0; //CLP ADDED
-  item->n_avail = 0; //CLP ADDED
-  item->n_req = 0; //CLP ADDED
+  item->r_star_bar = r_star_bar; //CLP ADDED
   return item;
 }
 
@@ -172,14 +166,16 @@ ut_int_when_below(utracker_int_t ut,
   utiterator_t it = list_iterator_create(ut);
   ut_int_item_t *prev;
   ut_int_item_t *next = list_next(it);
-  next->n_avail = bitmap2node_avail(bitmap); //CLP Added
+  int n_avail = bitmap2node_avail(bitmap); //CLP Added
   
   do {
     prev = next;
     next = list_next(it);
   } while(next && next->start < after);
   while(1) {
-    while(prev->value >= max_value) {
+    //while(prev->value >= max_value) {
+    while(prev->value >= (max_value - (n_avail * prev->r_star_bar))) {
+      debug3("%s: prev->value = %d, max_value = %d, n_avail * prev->r_star_bar = %.2f", __func__, prev->value, max_value, n_avail * prev->r_star_bar); //CLP Added
       if (!next) {
         return(-1);
       }
@@ -207,9 +203,9 @@ ut_int_create(int start_value){
 }
 
 utracker_int_t
-ut_int_create_(int start_value, float r_star){ //CLP ADDED
+ut_int_create_(int start_value, float r_star, float r_star_bar){ //CLP ADDED
   List list = list_create(_delete_item);
-  list_append(list, _create_item_((time_t)-1, start_value, r_star)); //CLP ADDED
+  list_append(list, _create_item_((time_t)-1, start_value, r_star, r_star_bar)); //CLP ADDED
   return list;
 }
 

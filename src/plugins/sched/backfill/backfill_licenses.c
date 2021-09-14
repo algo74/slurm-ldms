@@ -205,8 +205,8 @@ init_lic_tracker(int resolution) {
       //entry->ut = ut_int_create(license_entry->used > license_entry->r_used
       //    ? license_entry->used : license_entry->r_used);
       entry->ut = ut_int_create_(license_entry->used > license_entry->r_used
-          ? license_entry->used : license_entry->r_used, r_star); //CLP ADDED
-      debug3("%s: entry->name = %s, entry->total = %d, entry->ut = (MAX(used = %d, r_used = %d), r_star = %.2f", __func__, entry->name, entry->total, license_entry->used, license_entry->r_used, r_star); //CLP Added
+          ? license_entry->used : license_entry->r_used, r_star, r_star_bar); //CLP ADDED
+      debug3("%s: entry->name = %s, entry->total = %d, entry->ut = (MAX(used = %d, r_used = %d), r_star = %.2f, r_star_bar = %.2f", __func__, entry->name, entry->total, license_entry->used, license_entry->r_used, r_star, r_star_bar); //CLP Added
       list_push(res->tracker, entry);
     }
     list_iterator_destroy(iter);
