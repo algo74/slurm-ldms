@@ -81,7 +81,8 @@ void lt_return_lic(lic_tracker_p lt, job_record_t *job_ptr) {
     if (lt_entry) {
       // returning a little
       time_t t = _convert_time_fwd(job_ptr->end_time, lt->resolution);
-      ut_int_remove_till_end(lt_entry->ut, t,license_entry->total);
+      //ut_int_remove_till_end(lt_entry->ut, t,license_entry->total);
+      ut_int_remove_till_end(lt_entry->ut, t,license_entry->total, job_ptr->node_cnt); //CLP ADDED
     } else {
       error("%s: Job %pJ returned unknown license \"%s\"", __func__, job_ptr,
           license_entry->name);
