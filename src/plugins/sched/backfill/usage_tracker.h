@@ -11,7 +11,6 @@
 #include <time.h>
 
 #include "src/common/list.h"
-#include "src/common/bitstring.h"
 
 typedef List utracker_int_t;
 
@@ -23,16 +22,12 @@ void ut_int_add_usage(utracker_int_t ut,
 
 time_t ut_int_when_below(utracker_int_t ut,
                    time_t after, time_t duration,
-//                   int max_value);
-                   int max_value, //CLP ADDED
-                   bitstr_t *bitmap); //CLP ADDED
+                   int max_value);
 
 void ut_int_remove_till_end(utracker_int_t ut,
-//                      time_t start, int usage);
-                        time_t start, int usage, uint32_t node_cnt); //CLP ADDED
+                      time_t start, int usage);
 
 utracker_int_t ut_int_create(int start_value);
-utracker_int_t ut_int_create_(int start_value, float r_star, float r_star_bar); //CLP ADDED
 
 void ut_int_destroy(utracker_int_t ut);
 

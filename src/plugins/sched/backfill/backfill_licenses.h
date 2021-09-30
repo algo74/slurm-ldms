@@ -31,8 +31,7 @@ void dump_lic_tracker(lic_tracker_p lt);
  * IN/OUT when  - time to check after/when available
  * RET: SLURM_SUCCESS, EAGAIN (not available now), SLURM_ERROR (never runnable)
  */
-//int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr, time_t *when);
-int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr, time_t *when, bitstr_t *avail_bitmap); //CLP ADDED
+int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr, time_t *when);
 
 int backfill_licenses_overlap(lic_tracker_p lt, job_record_t *job_ptr, time_t when);
 
@@ -43,9 +42,5 @@ int backfill_licenses_overlap(lic_tracker_p lt, job_record_t *job_ptr, time_t wh
  */
 int backfill_licenses_alloc_job(lic_tracker_p lt, job_record_t *job_ptr,
                                 time_t start, time_t end);
-
-int sort_int_list(void *x, void *y); //CLP ADDED
-
-int bitmap2node_avail (bitstr_t *bitmap); //CLP ADDED
 
 #endif /* SRC_PLUGINS_SCHED_BACKFILL_BACKFILL_LICENSES_H_ */

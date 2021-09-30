@@ -76,13 +76,11 @@ void lt_return_lic(lic_tracker_p lt, job_record_t *job_ptr) {
   licenses_t *license_entry;
   lt_entry_t *lt_entry;
   while ((license_entry = list_next(j_iter))) {
-    debug3("%s: license_entry->name = %s, license_entry->total = %d", __func__, license_entry->name, license_entry->total); //CLP Added
     lt_entry = list_find_first(lt->tracker, _lt_find_lic_name, license_entry->name);
     if (lt_entry) {
       // returning a little
       time_t t = _convert_time_fwd(job_ptr->end_time, lt->resolution);
-      //ut_int_remove_till_end(lt_entry->ut, t,license_entry->total);
-      ut_int_remove_till_end(lt_entry->ut, t,license_entry->total, job_ptr->node_cnt); //CLP ADDED
+      ut_int_remove_till_end(lt_entry->ut, t,license_entry->total);
     } else {
       error("%s: Job %pJ returned unknown license \"%s\"", __func__, job_ptr,
           license_entry->name);
@@ -101,18 +99,7 @@ destroy_lic_tracker(lic_tracker_p lt) {
   xfree(lt);
 }
 
-int sort_int_list(void *x, void *y) //CLP ADDED
-{
-  float* _x = (float*) x;
-  float* _y = (float*) y;
-  if(*_x <= *_y)
-  {
-    return 1;
-  } else {
-    return -1;
-  }
 
-}
 
 lic_tracker_p
 init_lic_tracker(int resolution) {
@@ -120,78 +107,6 @@ init_lic_tracker(int resolution) {
   ListIterator iter;
   lic_tracker_p res = NULL;
   job_record_t *tmp_job_ptr;
-
-  List r_star_list = list_create(NULL); //CLP ADDED 
-  List r_list = list_create(NULL); //CLP ADDED
-  List n_list = list_create(NULL); //CLP ADDED
-
-  job_record_t *tmp_job_ptr_; //CLP ADDED  
-  ListIterator job_iterator_ = list_iterator_create(job_list); //CLP ADDED
-  unsigned int size = 0; //CLP ADDED
-  while ((tmp_job_ptr_ = list_next(job_iterator_))) { //CLP ADDED
-
-    if (!IS_JOB_RUNNING(tmp_job_ptr_) &&
-        !IS_JOB_SUSPENDED(tmp_job_ptr_))
-      continue;
-    if (tmp_job_ptr_->license_list == NULL) {
-      debug3("%s: %pJ has NULL license list -- skipping",
-            __func__, tmp_job_ptr_);
-      continue;
-    }
-
-    ListIterator j_iter = list_iterator_create(tmp_job_ptr_->license_list); //CLP ADDED
-    licenses_t *license_entry; //CLP ADDED
-    while ((license_entry = list_next(j_iter))) { //CLP ADDED
-      debug3("%s: license_entry->name = %s, license_entry->total = %d, tmp_job_ptr_->node_cnt = %d", __func__, license_entry->name, license_entry->total, tmp_job_ptr_->node_cnt); //CLP Added
-      if(strcmp(license_entry->name, "lustre") == 0) //CLP ADDED
-      {
-        float* r_star_ptr = (float*) xmalloc (sizeof(float)); //CLP ADDED
-        *r_star_ptr = (float) license_entry->total/tmp_job_ptr_->node_cnt; //CLP ADDED
-        uint32_t* r_ptr = (uint32_t*) xmalloc (sizeof(uint32_t)); //CLP ADDED
-        *r_ptr = license_entry->total; //CLP ADDED
-        uint32_t* n_ptr = (uint32_t*) xmalloc (sizeof(uint32_t)); //CLP ADDED
-        *n_ptr = tmp_job_ptr_->node_cnt; //CLP ADDED
-        list_push(r_star_list, r_star_ptr); //CLP ADDED
-        list_push(r_list, r_ptr); //CLP ADDED
-        list_push(n_list, n_ptr); //CLP ADDED
-        size += 1; //CLP ADDED     
-      }    
-    }
-    list_iterator_destroy(j_iter); //CLP ADDED
-  }
-  list_iterator_destroy(job_iterator_); //CLP ADDED
-
-  list_sort(r_star_list, sort_int_list); //CLP ADDED
-
-  ListIterator r_star_iter = list_iterator_create(r_star_list); //CLP ADDED
-  float *r_star_entry; //CLP ADDED
-  float r_star = 0; //CLP ADDED
-  unsigned int pos = 0; //CLP ADDED
-  unsigned int med_pos = (unsigned int) size/2; //CLP ADDED
-  if(size%2 != 0) med_pos += 1; //CLP ADDED 
-  while ((pos < med_pos) && (r_star_entry = list_next(r_star_iter))) { //CLP ADDED
-    debug3("%s: r_star_entry = %.2f, ", __func__, *r_star_entry); //CLP Added 
-    pos += 1; //CLP Added 
-    r_star = *r_star_entry; //CLP Added   
-  }
-
-  ListIterator r_iter = list_iterator_create(r_list); //CLP ADDED
-  ListIterator n_iter = list_iterator_create(n_list); //CLP ADDED
-  uint32_t *r_entry; //CLP ADDED
-  uint32_t *n_entry; //CLP ADDED
-  uint32_t r_sum = 0; //CLP ADDED
-  uint32_t n_sum = 0; //CLP ADDED
-  float r_star_bar = 0; //CLP ADDED
-
-  while ((r_entry = list_next(r_iter)) && (n_entry = list_next(n_iter))) { //CLP ADDED
-    if(*r_entry <= (*n_entry * r_star))
-    {
-      r_sum += *r_entry; //CLP ADDED
-      n_sum += *n_entry; //CLP ADDED
-    }
-  }
-  if(n_sum == 0) r_star_bar = 0; //CLP ADDED
-  else r_star_bar = (float) r_sum/n_sum; //CLP ADDED
 
   /* create licenses tracker */
   slurm_mutex_lock(&license_mutex);
@@ -204,11 +119,9 @@ init_lic_tracker(int resolution) {
       lt_entry_t *entry = xmalloc(sizeof(lt_entry_t));
       entry->name = xstrdup(license_entry->name);
       entry->total = license_entry->total;
-      //entry->ut = ut_int_create(license_entry->used > license_entry->r_used
-      //    ? license_entry->used : license_entry->r_used);
-      entry->ut = ut_int_create_(license_entry->used > license_entry->r_used
-          ? license_entry->used : license_entry->r_used, r_star, r_star_bar); //CLP ADDED
-      debug3("%s: entry->name = %s, entry->total = %d, entry->ut = (MAX(used = %d, r_used = %d), r_star = %.2f, r_star_bar = %.2f", __func__, entry->name, entry->total, license_entry->used, license_entry->r_used, r_star, r_star_bar); //CLP Added
+      entry->ut = ut_int_create(license_entry->used > license_entry->r_used
+          ? license_entry->used : license_entry->r_used);
+      //debug3("%s: entry->name = %s, entry->total = %d, entry->ut = (MAX(used = %d, r_used = %d)", __func__, entry->name, entry->total, license_entry->used, license_entry->r_used); //CLP Added
       list_push(res->tracker, entry);
     }
     list_iterator_destroy(iter);
@@ -242,7 +155,6 @@ init_lic_tracker(int resolution) {
       debug3("%s: %pJ might be finish -- not skipping for now",
             __func__, tmp_job_ptr);
     }
-
     lt_return_lic(res, tmp_job_ptr);
   }
   list_iterator_destroy(job_iterator);
@@ -254,8 +166,7 @@ init_lic_tracker(int resolution) {
 
 int backfill_licenses_overlap(lic_tracker_p lt, job_record_t *job_ptr, time_t when) {
   time_t check = when;
-  //backfill_licenses_test_job(lt, job_ptr, &check);
-  backfill_licenses_test_job(lt, job_ptr, &check, NULL); //CLP ADDED
+  backfill_licenses_test_job(lt, job_ptr, &check);
   int res = check != when;
   if (res) {
     debug3("%s: %pJ overlaps; scheduled: %ld, allowed: %ld",
@@ -265,8 +176,8 @@ int backfill_licenses_overlap(lic_tracker_p lt, job_record_t *job_ptr, time_t wh
   return res;
 }
 
-//int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr, time_t *when){
-int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr, time_t *when, bitstr_t *avail_bitmap){ //CLP ADDED
+
+int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr, time_t *when){
   /*AG TODO: implement reservations */
   /*AG FIXME: should probably use job_ptr->min_time if present */
   /*AG TODO: refactor algorithm */
@@ -303,11 +214,9 @@ int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr, time_t *
       }
       lt_entry = list_find_first(lt->tracker, _lt_find_lic_name, license_entry->name);
       if (lt_entry) {
-	debug3("%s: Job %pJ: license %s: lt_entry->total = %d, license_entry->total = %d", __func__, job_ptr, license_entry->name, lt_entry->total, license_entry->total); //CLP Added
-        
+	//debug3("%s: Job %pJ: license %s: lt_entry->total = %d, license_entry->total = %d", __func__, job_ptr, license_entry->name, lt_entry->total, license_entry->total); //CLP Added
         curr_start = ut_int_when_below(lt_entry->ut, prev_start, duration,
-            //lt_entry->total - license_entry->total + 1);
-            lt_entry->total - license_entry->total + 1, avail_bitmap);
+            lt_entry->total - license_entry->total + 1);
         if (curr_start == -1) {
           error("%s: Job %pJ will never get %d license \"%s\"", __func__, job_ptr,
             license_entry->total, license_entry->name);
@@ -373,34 +282,4 @@ backfill_licenses_alloc_job(lic_tracker_p lt,
   debug3("%s: allocated licenses for %pJ :", __func__, job_ptr);
   dump_lic_tracker(lt);
   return SLURM_SUCCESS;
-}
-
-int bitmap2node_avail (bitstr_t *bitmap) //CLP ADDED
-{
-	int i, first, last, node_avail;
-	//hostlist_t hl;
-
-	if (bitmap == NULL)
-		return 0;
-
-	first = bit_ffs(bitmap);
-	if (first == -1)
-		return 0;
-
-	last  = bit_fls(bitmap);
-        node_avail = last - first + 1;
-	//hl = hostlist_create(NULL);
-	for (i = first; i <= last; i++) {
-		if (bit_test(bitmap, i) == 0)
-		{
-			node_avail -= 1;
-			continue;
-   		}
-		//hostlist_push_host(hl, node_record_table_ptr[i].name);
-                debug3("%s: Node %d available", __func__, i);
-	}
-	//return hl;
-        debug3("%s: node_avail = %d", __func__, node_avail);
-        return node_avail;
-
 }
