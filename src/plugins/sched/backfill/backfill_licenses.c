@@ -121,7 +121,7 @@ init_lic_tracker(int resolution) {
       entry->total = license_entry->total;
       entry->ut = ut_int_create(license_entry->used > license_entry->r_used
           ? license_entry->used : license_entry->r_used);
-      debug3("%s: entry->name = %s, entry->total = %d, entry->ut = (MAX(used = %d, r_used = %d)", __func__, entry->name, entry->total, license_entry->used, license_entry->r_used); //CLP Added
+      //debug3("%s: entry->name = %s, entry->total = %d, entry->ut = (MAX(used = %d, r_used = %d)", __func__, entry->name, entry->total, license_entry->used, license_entry->r_used); //CLP Added
       list_push(res->tracker, entry);
     }
     list_iterator_destroy(iter);
@@ -214,7 +214,7 @@ int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr, time_t *
       }
       lt_entry = list_find_first(lt->tracker, _lt_find_lic_name, license_entry->name);
       if (lt_entry) {
-	debug3("%s: Job %pJ: license %s: lt_entry->total = %d, license_entry->total = %d", __func__, job_ptr, license_entry->name, lt_entry->total, license_entry->total); //CLP Added
+	//debug3("%s: Job %pJ: license %s: lt_entry->total = %d, license_entry->total = %d", __func__, job_ptr, license_entry->name, lt_entry->total, license_entry->total); //CLP Added
         curr_start = ut_int_when_below(lt_entry->ut, prev_start, duration,
             lt_entry->total - license_entry->total + 1);
         if (curr_start == -1) {

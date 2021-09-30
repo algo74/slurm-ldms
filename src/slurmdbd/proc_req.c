@@ -2668,8 +2668,8 @@ static void _process_job_start(slurmdbd_conn_t *slurmdbd_conn,
 		slurmdbd_conn->db_conn, &job);
 	id_rc_msg->job_id = job.job_id;
 	id_rc_msg->db_index = job.db_index;
-	id_rc_msg->alloc_nodes = job_start_msg->alloc_nodes; //CLP ADDED
-	id_rc_msg->submit_time = job_start_msg->submit_time; //CLP ADDED
+	//id_rc_msg->alloc_nodes = job_start_msg->alloc_nodes; //CLP ADDED
+	//id_rc_msg->submit_time = job_start_msg->submit_time; //CLP ADDED
 
 	/* just in case job.wckey was set because we didn't send one */
 	if (!job_start_msg->wckey)

@@ -133,7 +133,7 @@ extern void *remote_metrics_agent(void *args)
             error("remote_metric server response item \"luster\" isn't a string");
           } else {
             i = atoi(lustre->valuestring);
-	    debug2("%s: i = %d", __func__, i); //CLP Added
+	    //debug2("%s: i = %d", __func__, i); //CLP Added
             if (i >= 0) {
               updated = true;
             }
@@ -156,7 +156,7 @@ extern void *remote_metrics_agent(void *args)
         debug("could not find license %s for remote_metric update",
               license_name);
       } else {
-        debug2("%s: i = %d, match->total = %d", __func__, i, match->total); //CLP Added
+        //debug2("%s: i = %d, match->total = %d", __func__, i, match->total); //CLP Added
         if (i > match->total) {
           /* clump value to total */
           i = match->total;
