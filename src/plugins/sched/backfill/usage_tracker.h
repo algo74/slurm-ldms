@@ -32,7 +32,7 @@ void ut_int_remove_till_end(utracker_int_t ut,
                         time_t start, int usage, uint32_t node_cnt); //CLP ADDED
 
 utracker_int_t ut_int_create(int start_value);
-utracker_int_t ut_int_create_(int start_value, float r_star, float r_star_bar); //CLP ADDED
+utracker_int_t ut_int_create_(int start_value, float r_star_bar); //CLP ADDED
 
 void ut_int_destroy(utracker_int_t ut);
 

@@ -48,4 +48,8 @@ int sort_int_list(void *x, void *y); //CLP ADDED
 
 int bitmap2node_avail (bitstr_t *bitmap); //CLP ADDED
 
+float compute_r_star_bar(); //CLP ADDED
+
+//void compute_and_set_r_star_bar(lic_tracker_p lt); //CLP ADDED
+
 #endif /* SRC_PLUGINS_SCHED_BACKFILL_BACKFILL_LICENSES_H_ */

@@ -22,7 +22,6 @@
 typedef struct ut_int_struct {
   time_t start;
   int value;
-  float r_star; //CLP ADDED
   float r_star_bar; //CLP ADDED
   uint32_t node_cnt; //CLP ADDED
 } ut_int_item_t;
@@ -40,18 +39,16 @@ _create_item(time_t start, int value) {
   ut_int_item_t *item = xmalloc(sizeof(ut_int_item_t));
   item->start = start;
   item->value = value;
-  item->r_star = 0; //CLP ADDED
   item->r_star_bar = 0; //CLP ADDED
   item->node_cnt = 0; //CLP ADDED
   return item;
 }
 
 static ut_int_item_t*
-_create_item_(time_t start, int value, float r_star, float r_star_bar) { //CLP ADDED
+_create_item_(time_t start, int value, float r_star_bar) { //CLP ADDED
   ut_int_item_t *item = xmalloc(sizeof(ut_int_item_t));
   item->start = start;
   item->value = value;
-  item->r_star = r_star; //CLP ADDED
   item->r_star_bar = r_star_bar; //CLP ADDED
   item->node_cnt = 0; //CLP ADDED
   return item;
@@ -62,7 +59,6 @@ _create_item__(time_t start, int value, uint32_t node_cnt) {
   ut_int_item_t *item = xmalloc(sizeof(ut_int_item_t));
   item->start = start;
   item->value = value;
-  item->r_star = 0; //CLP ADDED
   item->r_star_bar = 0; //CLP ADDED
   item->node_cnt = node_cnt; //CLP ADDED
   return item;
@@ -222,9 +218,9 @@ ut_int_create(int start_value){
 }
 
 utracker_int_t
-ut_int_create_(int start_value, float r_star, float r_star_bar){ //CLP ADDED
+ut_int_create_(int start_value, float r_star_bar){ //CLP ADDED
   List list = list_create(_delete_item);
-  list_append(list, _create_item_((time_t)-1, start_value, r_star, r_star_bar)); //CLP ADDED
+  list_append(list, _create_item_((time_t)-1, start_value, r_star_bar)); //CLP ADDED
   return list;
 }
 
@@ -254,4 +250,3 @@ ut_int_dump(utracker_int_t ut) {
   list_for_each(ut, _dump_item, NULL);
   log("--------------------------------");
 }
-
