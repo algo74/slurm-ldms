@@ -243,10 +243,17 @@ _dump_item(void *item, void *arg) {
   return 1;
 }
 
-
 void
 ut_int_dump(utracker_int_t ut) {
   log("--------------------------------");
   list_for_each(ut, _dump_item, NULL);
   log("--------------------------------");
+}
+
+void ut_compute_and_set_r_star_bar(utracker_int_t ut) { //CLP ADDED
+  
+    utiterator_t it = list_iterator_create(ut);
+    ut_int_item_t *next = list_next(it);
+  
+    next->r_star_bar = compute_r_star_bar();
 }

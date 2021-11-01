@@ -38,4 +38,6 @@ void ut_int_destroy(utracker_int_t ut);
 
 void ut_int_dump(utracker_int_t ut);
 
+void ut_compute_and_set_r_star_bar(utracker_int_t ut); //CLP ADDED
+
 #endif /* USAGE_TRACKER_H_ */

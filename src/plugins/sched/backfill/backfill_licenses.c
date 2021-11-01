@@ -191,21 +191,18 @@ float compute_r_star_bar() { //CLP ADDED
   return r_star_bar;
 }
 
-/*void compute_and_set_r_star_bar(lic_tracker_p lt) { //CLP ADDED
+void compute_and_set_r_star_bar(lic_tracker_p lt) { //CLP ADDED
   lt_entry_t *lt_entry;
   lt_entry = list_find_first(lt->tracker, _lt_find_lic_name, "lustre");
   if (lt_entry) {
-    debug3("%s: Job %pJ: license %s: lt_entry->total = %d, license_entry->total = %d", __func__, job_ptr, license_entry->name, lt_entry->total, license_entry->total);
+    debug3("%s: license lustre: lt_entry->total = %d", __func__, lt_entry->total);
 
-    utiterator_t it = list_iterator_create(lt_entry->ut);
-    ut_int_item_t *next = list_next(it);
-  
-    next->r_star_bar = compute_r_star_bar();
+    ut_compute_and_set_r_star_bar(lt_entry->ut);
     
   } else {
-    error("%s: Job %pJ require unknown license \"%s\"", __func__, job_ptr, license_entry->name);
+    error("%s: unknown license lustre", __func__);
   }
-}*/
+}
 
 lic_tracker_p
 init_lic_tracker(int resolution) {
