@@ -319,9 +319,9 @@ static char *_get_variety_id(job_record_t *job_ptr)
     cJSON_AddStringToObject(request, "type", "variety_id/auto");
     // get script and args
     //cJSON_AddStringToObject(request, "script_name", job_desc->script);
-    //cJSON_AddStringToObject(request, "script_name", get_job_script(job_ptr));
+    cJSON_AddStringToObject(request, "script_name", job_ptr->details->script);
     //debug3("_get_variety_id: job_desc->script is \"%s\"", job_desc->script);
-    //debug3("_get_variety_id: job_desc->script is \"%s\"", get_job_script(job_ptr));
+    debug3("_get_variety_id: job_desc->script is \"%s\"", job_ptr->details->script);
     //debug3("_get_variety_id: job_desc->job_id_str is \"%s\"", job_desc->job_id_str);
     //int count = job_desc->argc;
     int count = job_ptr->details->argc;
@@ -340,7 +340,7 @@ static char *_get_variety_id(job_record_t *job_ptr)
 //        else debug3("environment %d is \"%s\"", i, n);
 //    }
     //cJSON *arg_array = cJSON_CreateStringArray(job_desc->argv, job_desc->argc);
-    //cJSON *arg_array = cJSON_CreateStringArray(job_ptr->details->argv, job_ptr->details->argc);
+    cJSON *arg_array = cJSON_CreateStringArray(job_ptr->details->argv, job_ptr->details->argc);
     //cJSON_AddItemToObject(request, "script_args", arg_array);
   }
   char buf[256];
@@ -592,6 +592,7 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
 */
 
 void update_job_usage(job_record_t *job_ptr) {
+  debug2("%s: Starting update_job_usage", __func__);
 
   // get variety_id
   char *variety_id = _get_variety_id(job_ptr);
@@ -599,7 +600,7 @@ void update_job_usage(job_record_t *job_ptr) {
     debug2("%s: Error getting variety id. Is the server on?", __func__);
     return;
   }
-
+/*
   // get usage info from remote (if needed)
   //AG TODO: implement "if needed" check
   cJSON * utilization = _get_job_usage(variety_id);
@@ -638,9 +639,9 @@ void update_job_usage(job_record_t *job_ptr) {
           __func__, job_desc->licenses);
       }
 	*/
-    }
+   /* }
   }
-
+*/
 }
 
 
