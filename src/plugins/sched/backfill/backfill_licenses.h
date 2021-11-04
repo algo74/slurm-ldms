@@ -12,6 +12,9 @@
 
 #include "usage_tracker.h"
 
+#include "lustre_util.h" //CLP ADDED
+
+
 typedef struct lic_tracker_struct {
   List tracker;
   int resolution;
