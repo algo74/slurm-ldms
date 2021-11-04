@@ -631,7 +631,7 @@ void update_job_usage(job_record_t *job_ptr) {
       debug3("%s: got zero lustre param from server for variety_id %s",
         __func__, variety_id);
     } else {
-      debug3("%s: MADE IT THIS FAR");
+      debug3("%s: MADE IT THIS FAR, num = %ld", num);
 	/*
       if (!_add_license_to_job_desc(job_desc, "lustre", num)) {
         error("%s: can't update licenses: %s",
