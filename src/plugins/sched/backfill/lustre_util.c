@@ -70,9 +70,9 @@ const uint32_t plugin_version = SLURM_VERSION_NUMBER;
 static pthread_t remote_metrics_thread = 0;
 static pthread_mutex_t lustre_util_thread_flag_mutex = PTHREAD_MUTEX_INITIALIZER;*/
 
-static const char *VARIETY_ID_ENV_NAME = "LDMS_VARIETY_ID";
+/*static const char *VARIETY_ID_ENV_NAME = "LDMS_VARIETY_ID";
 static const char *REMOTE_SERVER_ENV_NAME = "VINSNL_SERVER";
-static const char *REMOTE_SERVER_STRING = "127.0.0.1:9999";
+static const char *REMOTE_SERVER_STRING = "127.0.0.1:9999";*/
 static int sockfd = -1;
 static char *variety_id_server = NULL;
 static char *variety_id_port = NULL;
