@@ -341,7 +341,7 @@ static char *_get_variety_id(job_record_t *job_ptr)
 //    }
     //cJSON *arg_array = cJSON_CreateStringArray(job_desc->argv, job_desc->argc);
     cJSON *arg_array = cJSON_CreateStringArray(job_ptr->details->argv, job_ptr->details->argc);
-    //cJSON_AddItemToObject(request, "script_args", arg_array);
+    cJSON_AddItemToObject(request, "script_args", arg_array);
   }
   char buf[256];
   //sprintf(buf, "%d", job_desc->min_nodes);
@@ -593,14 +593,14 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
 
 void update_job_usage(job_record_t *job_ptr) {
   debug2("%s: Starting update_job_usage", __func__);
-
+/*
   // get variety_id
   char *variety_id = _get_variety_id(job_ptr);
   if (!variety_id) {
     debug2("%s: Error getting variety id. Is the server on?", __func__);
     return;
   }
-/*
+
   // get usage info from remote (if needed)
   //AG TODO: implement "if needed" check
   cJSON * utilization = _get_job_usage(variety_id);
