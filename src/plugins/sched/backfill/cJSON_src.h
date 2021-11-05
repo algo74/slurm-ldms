@@ -71,8 +71,8 @@
 typedef struct {
     const unsigned char *json;
     size_t position;
-} error;
-static error global_error = { NULL, 0 };
+} error_;
+static error_ global_error = { NULL, 0 };
 
 CJSON_PUBLIC(const char *) cJSON_GetErrorPtr(void)
 {
@@ -1068,7 +1068,7 @@ fail:
 
     if (value != NULL)
     {
-        error local_error;
+        error_ local_error;
         local_error.json = (const unsigned char*)value;
         local_error.position = 0;
 

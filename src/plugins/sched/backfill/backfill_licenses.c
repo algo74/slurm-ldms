@@ -425,16 +425,117 @@ int bitmap2node_avail (bitstr_t *bitmap) //CLP ADDED
 
 }
 
+#include "cJSON_src.h" //CLP ADDED
+
+static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
+{
+  uint32_t uid = 0;
+
+  cJSON *request = cJSON_CreateObject();
+  // get the comment field
+  char *comment = job_ptr->comment;
+  // get user specified name from the comment field
+  char *equalchar = xstrchr(comment, '=');
+  if (equalchar && xstrncmp(comment, "jobtype", equalchar - comment) == 0) {
+    // if user specified a name - use it
+    char *semicolon = xstrchr(equalchar+1, ';');
+    if (semicolon) {
+      // check if all characters are alphanumeric or '_'
+      char *c;
+      for(c = equalchar+1; c < semicolon; c++) {
+        if (!isalnum(c) && *c != '_') {
+          // a wrong character in jobname
+          error("_get_variety_id: wrong character in jobtype: '%c'", *c);
+          return NULL;
+        }
+      }
+      int len = semicolon-equalchar;
+      char *jobname = xstrndup(equalchar+1, len-1);
+      debug3("_get_variety_id: Job type is '%s'", jobname);
+      // prepare request for jobtype option
+      cJSON_AddStringToObject(request, "type", "variety_id/manual");
+      cJSON_AddStringToObject(request, "variety_name", jobname);
+    } else {
+      error("_get_variety_id: no semicolon after jobtype");
+          return NULL;
+    }
+  } else {
+    // no job type specified
+    // prepare request for auto option
+    cJSON_AddStringToObject(request, "type", "variety_id/auto");
+    // get script and args
+    //cJSON_AddStringToObject(request, "script_name", job_desc->script);
+    //cJSON_AddStringToObject(request, "script_name", job_ptr->details->script);
+    cJSON_AddStringToObject(request, "script_name", "");
+    //debug3("_get_variety_id: job_desc->script is \"%s\"", job_desc->script);
+    //debug3("_get_variety_id: job_desc->script is \"%s\"", job_ptr->details->script);
+    debug3("_get_variety_id: job_desc->script is \"%s\"", "");
+    //debug3("_get_variety_id: job_desc->job_id_str is \"%s\"", job_desc->job_id_str);
+    //int count = job_desc->argc;
+    int count = job_ptr->details->argc;
+    int i;
+    for (i = 0; (i < (size_t)count); i++)
+    {
+        //char * n = job_desc->argv[i];
+        char * n = job_ptr->details->argv[i];
+        if(!n) error("_get_variety_id: job_desc->argv[%d] is NULL", i);
+        else debug3("_get_variety_id: job_desc->argv[%d] is \"%s\"", i, n);
+    }
+//    for (i = 0; (i < (size_t)job_desc->env_size); i++)
+//    {
+//        char * n = job_desc->environment[i];
+//        if(!n) error("environment %d is NULL", i);
+//        else debug3("environment %d is \"%s\"", i, n);
+//    }
+    //cJSON *arg_array = cJSON_CreateStringArray(job_desc->argv, job_desc->argc);
+    cJSON *arg_array = cJSON_CreateStringArray(job_ptr->details->argv, job_ptr->details->argc);
+    cJSON_AddItemToObject(request, "script_args", arg_array);
+  }
+  char buf[256];
+  //sprintf(buf, "%d", job_desc->min_nodes);
+  sprintf(buf, "%d", job_ptr->details->min_nodes);
+  cJSON_AddStringToObject(request, "min_nodes", buf);
+  //sprintf(buf, "%d", job_desc->max_nodes);
+  sprintf(buf, "%d", job_ptr->details->max_nodes);
+  cJSON_AddStringToObject(request, "max_nodes", buf);
+  if (job_ptr->user_id) {
+    uid = job_ptr->user_id;
+  }
+  sprintf(buf, "%d", uid);
+  cJSON_AddStringToObject(request, "UID", buf);
+  //AG TODO: add groupid
+
+  cJSON * resp = _send_receive(request);
+
+  if(resp == NULL){
+    error("%s: could not get response from variety_id server", __func__);
+    return NULL;
+  }
+
+  char *variety_id = NULL;
+  cJSON *json_var_id = cJSON_GetObjectItem(resp, "variety_id");
+  if (cJSON_IsString(json_var_id)) {
+    variety_id = xstrdup(json_var_id->valuestring);
+    debug3("Variety id is '%s'", variety_id);
+  }
+  else {
+    error("%s:  malformed response from variety_id server", __func__);
+  }
+  cJSON_Delete(resp);
+
+  return variety_id;
+}
+
 void update_job_usage(job_record_t *job_ptr) { //CLP ADDED
   debug2("%s: Starting update_job_usage", __func__);
 
   // get variety_id
-/*  char *variety_id = _get_variety_id(job_ptr);
+  char *variety_id = _get_variety_id(job_ptr);
   if (!variety_id) {
     debug2("%s: Error getting variety id. Is the server on?", __func__);
     return;
   }
-
+/*
   // get usage info from remote (if needed)
   //AG TODO: implement "if needed" check
   cJSON * utilization = _get_job_usage(variety_id);

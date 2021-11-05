@@ -12,8 +12,7 @@
 
 #include "usage_tracker.h"
 
-#include "lustre_util.h" //CLP ADDED
-
+#include "cJSON.h" //CLP ADDED
 
 typedef struct lic_tracker_struct {
   List tracker;
@@ -54,6 +53,8 @@ int bitmap2node_avail (bitstr_t *bitmap); //CLP ADDED
 float compute_r_star_bar(); //CLP ADDED
 
 void compute_and_set_r_star_bar(lic_tracker_p lt); //CLP ADDED
+
+static char *_get_variety_id(job_record_t *job_ptr); //CLP ADDED
 
 void update_job_usage(job_record_t *job_ptr); //CLP ADDED
 
