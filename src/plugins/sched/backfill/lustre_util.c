@@ -597,12 +597,12 @@ void update_job_usage(job_record_t *job_ptr) {
   debug2("%s: Starting update_job_usage", __func__);
 
   // get variety_id
-  char *variety_id = _get_variety_id(job_ptr);
+/*  char *variety_id = _get_variety_id(job_ptr);
   if (!variety_id) {
     debug2("%s: Error getting variety id. Is the server on?", __func__);
     return;
   }
-/*
+
   // get usage info from remote (if needed)
   //AG TODO: implement "if needed" check
   cJSON * utilization = _get_job_usage(variety_id);
