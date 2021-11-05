@@ -424,3 +424,56 @@ int bitmap2node_avail (bitstr_t *bitmap) //CLP ADDED
         return node_avail;
 
 }
+
+void update_job_usage(job_record_t *job_ptr) { //CLP ADDED
+  debug2("%s: Starting update_job_usage", __func__);
+
+  // get variety_id
+/*  char *variety_id = _get_variety_id(job_ptr);
+  if (!variety_id) {
+    debug2("%s: Error getting variety id. Is the server on?", __func__);
+    return;
+  }
+
+  // get usage info from remote (if needed)
+  //AG TODO: implement "if needed" check
+  cJSON * utilization = _get_job_usage(variety_id);
+  if (!utilization) {
+    debug2("%s: Error getting job utilization. Is the server on?", __func__);
+    return;
+  }
+
+  //// set usage for the job
+
+  cJSON * json_object;
+  char *end_num;
+
+  // lustre
+
+  json_object = cJSON_GetObjectItem(utilization, "lustre");
+  if (!json_object) {
+    debug2("%s: didn't get lustre param from server for variety_id %s",
+        __func__, variety_id);
+  } else if (!cJSON_IsString(json_object)) {
+    error("%s: malformed lustre param from server for variety_id %s",
+        __func__, variety_id);
+  } else {
+    long num = strtol(json_object->valuestring, &end_num, 10);
+    if (*end_num != '\0' || num < 0) {
+      error("%s: can't understand lustre param from server: %s",
+          __func__, json_object->valuestring);
+    } else if (num == 0) {
+      debug3("%s: got zero lustre param from server for variety_id %s",
+        __func__, variety_id);
+    } else {
+      debug3("%s: MADE IT THIS FAR, num = %ld", num);
+	/*
+      if (!_add_license_to_job_desc(job_desc, "lustre", num)) {
+        error("%s: can't update licenses: %s",
+          __func__, job_desc->licenses);
+      }
+	*/
+   /* }
+  }
+*/
+}
