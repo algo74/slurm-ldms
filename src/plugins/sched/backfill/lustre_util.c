@@ -72,13 +72,13 @@ static pthread_mutex_t lustre_util_thread_flag_mutex = PTHREAD_MUTEX_INITIALIZER
 
 /*static const char *VARIETY_ID_ENV_NAME = "LDMS_VARIETY_ID";
 static const char *REMOTE_SERVER_ENV_NAME = "VINSNL_SERVER";
-static const char *REMOTE_SERVER_STRING = "127.0.0.1:9999";*/
-static int sockfd = -1;
+static const char *REMOTE_SERVER_STRING = "127.0.0.1:9999";
+static int sockfd = -1; //UNCOMMENT
 static char *variety_id_server = NULL;
 static char *variety_id_port = NULL;
 
 static const char *JOB_ID_ENV_NAME = "SLURM_JOB_ID"; //CLP ADDED
-
+*/
 
 /*int init( void )
 {
@@ -192,6 +192,7 @@ void fini( void )
  *
  * caller gets the ownership of response
  */
+/* UNCOMMENT
 static cJSON *_send_receive(cJSON* request)
 {
   int tries = 0;
@@ -225,7 +226,7 @@ RETRY:
   cJSON_Delete(request);
   return resp;
 }
-
+*/
 
 
 /**
@@ -281,6 +282,7 @@ RETRY:
 
 //slurm-ldms/src/slurmctld/job_mgr.c
 //static int _copy_job_desc_to_job_record sets job_ptr->comment to job_desc->comment
+/* UNCOMMENT
 static char *_get_variety_id(job_record_t *job_ptr)
 {
   uint32_t uid = 0;
@@ -379,6 +381,7 @@ static char *_get_variety_id(job_record_t *job_ptr)
 
   return variety_id;
 }
+*/
 
 /*static char *_get_variety_id(job_desc_msg_t *job_desc, uint32_t uid)
 {
@@ -474,7 +477,7 @@ static char *_get_variety_id(job_record_t *job_ptr)
   return variety_id;
 }
 */
-
+/* UNCOMMENT
 static cJSON *_get_job_usage(char *variety_id)
 {
   cJSON *request = cJSON_CreateObject();
@@ -495,7 +498,7 @@ static cJSON *_get_job_usage(char *variety_id)
   }
 
   return util;
-}
+}*/
 
 /*
 extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
