@@ -7,7 +7,7 @@
 #include "src/slurmctld/slurmctld.h"
 #include "src/common/xstring.h"
 
-#include "remote_metrics.h"
+//#include "remote_metrics.h"
 #include "client.h"
 
 static cJSON *_send_receive(cJSON* request);

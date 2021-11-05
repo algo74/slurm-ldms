@@ -8098,7 +8098,7 @@ static int _copy_job_desc_to_job_record(job_desc_msg_t *job_desc,
 	detail_ptr->argv = job_desc->argv;
 	job_desc->argv   = (char **) NULL; /* nothing left to free */
 	job_desc->argc   = 0;		   /* nothing left to free */
-	detail_ptr->script = xstrdup(job_desc->script);
+	//detail_ptr->script = xstrdup(job_desc->script); //CLP ADDED
 	detail_ptr->acctg_freq = xstrdup(job_desc->acctg_freq);
 	detail_ptr->cpu_bind_type = job_desc->cpu_bind_type;
 	detail_ptr->cpu_bind   = xstrdup(job_desc->cpu_bind);
