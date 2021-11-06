@@ -544,13 +544,13 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
   sprintf(buf, "%d", uid);
   cJSON_AddStringToObject(request, "UID", buf);
   //AG TODO: add groupid
-/*
+
   cJSON * resp = _send_receive(request);
 
   if(resp == NULL){
     error("%s: could not get response from variety_id server", __func__);
     return NULL;
-  }*/
+  }
 
   char *variety_id = NULL;
   /*cJSON *json_var_id = cJSON_GetObjectItem(resp, "variety_id");
