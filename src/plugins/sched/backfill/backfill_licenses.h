@@ -12,7 +12,7 @@
 
 #include "usage_tracker.h"
 
-#include "cJSON.h" //CLP ADDED
+#include "client.h" //CLP ADDED
 
 typedef struct lic_tracker_struct {
   List tracker;

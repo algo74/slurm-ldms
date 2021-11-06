@@ -426,6 +426,45 @@ int bitmap2node_avail (bitstr_t *bitmap) //CLP ADDED
 }
 
 #include "cJSON_src.h" //CLP ADDED
+#include "client_src.h" //CLP ADDED
+
+static int sockfd = -1; //UNCOMMENT
+static char *variety_id_server = NULL;
+static char *variety_id_port = NULL;
+
+static cJSON *_send_receive(cJSON* request)
+{
+  int tries = 0;
+  const int max_tries = 3;
+RETRY:
+  if (++tries > max_tries) {
+    error("%s: tried %d times and gave up", __func__, max_tries);
+    return NULL;
+  }
+
+  // make sure we connected
+  if (sockfd <= 0) {
+    debug3("%s: connecting to host: %s, port: %s",
+        __func__, variety_id_server, variety_id_port);
+    sockfd = connect_to_simple_server(variety_id_server, variety_id_port);
+  }
+  if (sockfd <= 0) {
+    error("%s: could not connect to the server for job_submit",
+        __func__);
+    return NULL;
+  }
+
+  cJSON *resp = send_receive(sockfd, request);
+  if (!resp) {
+    error("%s: did not get expected response from the server for job_submit",
+        __func__);
+    close(sockfd);
+    sockfd = -1;
+    goto RETRY;
+  }
+  cJSON_Delete(request);
+  return resp;
+}
 
 static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
 {
@@ -491,7 +530,7 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
     cJSON *arg_array = cJSON_CreateStringArray(job_ptr->details->argv, job_ptr->details->argc);
     cJSON_AddItemToObject(request, "script_args", arg_array);
   }
-/*
+
   char buf[256];
   //sprintf(buf, "%d", job_desc->min_nodes);
   sprintf(buf, "%d", job_ptr->details->min_nodes);
@@ -505,7 +544,7 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
   sprintf(buf, "%d", uid);
   cJSON_AddStringToObject(request, "UID", buf);
   //AG TODO: add groupid
-
+/*
   cJSON * resp = _send_receive(request);
 
   if(resp == NULL){
