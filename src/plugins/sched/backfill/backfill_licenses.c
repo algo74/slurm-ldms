@@ -433,7 +433,7 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
 
   cJSON *request = cJSON_CreateObject();
   // get the comment field
-  /*char *comment = job_ptr->comment;
+  char *comment = job_ptr->comment;
   // get user specified name from the comment field
   char *equalchar = xstrchr(comment, '=');
   if (equalchar && xstrncmp(comment, "jobtype", equalchar - comment) == 0) {
@@ -466,13 +466,13 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
     // get script and args
     //cJSON_AddStringToObject(request, "script_name", job_desc->script);
     //cJSON_AddStringToObject(request, "script_name", job_ptr->details->script);
-    cJSON_AddStringToObject(request, "script_name", "");
+    //cJSON_AddStringToObject(request, "script_name", "");
     //debug3("_get_variety_id: job_desc->script is \"%s\"", job_desc->script);
     //debug3("_get_variety_id: job_desc->script is \"%s\"", job_ptr->details->script);
-    debug3("_get_variety_id: job_desc->script is \"%s\"", "");
+    //debug3("_get_variety_id: job_desc->script is \"%s\"", "");
     //debug3("_get_variety_id: job_desc->job_id_str is \"%s\"", job_desc->job_id_str);
     //int count = job_desc->argc;
-    int count = job_ptr->details->argc;
+    /*int count = job_ptr->details->argc;
     int i;
     for (i = 0; (i < (size_t)count); i++)
     {
@@ -480,7 +480,7 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
         char * n = job_ptr->details->argv[i];
         if(!n) error("_get_variety_id: job_desc->argv[%d] is NULL", i);
         else debug3("_get_variety_id: job_desc->argv[%d] is \"%s\"", i, n);
-    }
+    }*/
 //    for (i = 0; (i < (size_t)job_desc->env_size); i++)
 //    {
 //        char * n = job_desc->environment[i];
@@ -491,6 +491,7 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
     cJSON *arg_array = cJSON_CreateStringArray(job_ptr->details->argv, job_ptr->details->argc);
     cJSON_AddItemToObject(request, "script_args", arg_array);
   }
+/*
   char buf[256];
   //sprintf(buf, "%d", job_desc->min_nodes);
   sprintf(buf, "%d", job_ptr->details->min_nodes);
