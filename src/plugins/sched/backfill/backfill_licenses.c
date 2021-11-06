@@ -427,7 +427,7 @@ int bitmap2node_avail (bitstr_t *bitmap) //CLP ADDED
 
 #include "cJSON_src.h" //CLP ADDED
 
-static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
+/*static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
 {
   uint32_t uid = 0;
 
@@ -525,17 +525,18 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
 
   return variety_id;
 }
+*/
 
 void update_job_usage(job_record_t *job_ptr) { //CLP ADDED
   debug2("%s: Starting update_job_usage", __func__);
 
   // get variety_id
-  char *variety_id = _get_variety_id(job_ptr);
+/*  char *variety_id = _get_variety_id(job_ptr);
   if (!variety_id) {
     debug2("%s: Error getting variety id. Is the server on?", __func__);
     return;
   }
-/*
+
   // get usage info from remote (if needed)
   //AG TODO: implement "if needed" check
   cJSON * utilization = _get_job_usage(variety_id);
