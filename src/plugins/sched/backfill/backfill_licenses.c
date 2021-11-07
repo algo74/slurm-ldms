@@ -553,7 +553,7 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
   }
 
   char *variety_id = NULL;
-  /*cJSON *json_var_id = cJSON_GetObjectItem(resp, "variety_id");
+  cJSON *json_var_id = cJSON_GetObjectItem(resp, "variety_id");
   if (cJSON_IsString(json_var_id)) {
     variety_id = xstrdup(json_var_id->valuestring);
     debug3("Variety id is '%s'", variety_id);
@@ -561,7 +561,7 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
   else {
     error("%s:  malformed response from variety_id server", __func__);
   }
-  cJSON_Delete(resp);*/
+  cJSON_Delete(resp);
 
   return variety_id;
 }
