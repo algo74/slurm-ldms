@@ -566,6 +566,28 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
   return variety_id;
 }
 
+static cJSON *_get_job_usage(char *variety_id) //CLP ADDED
+{
+  cJSON *request = cJSON_CreateObject();
+  cJSON_AddStringToObject(request, "type", "job_utilization");
+  cJSON_AddStringToObject(request, "variety_id", variety_id);
+
+  cJSON *resp = _send_receive(request);
+
+  if(resp == NULL){
+    error("%s: could not get job utilization from server", __func__);
+    return NULL;
+  }
+
+  cJSON *util = cJSON_GetObjectItem(resp, "response");
+  if (util == NULL) {
+    error("%s: bad response from server: no response field", __func__);
+    return NULL;
+  }
+
+  return util;
+}
+
 
 void update_job_usage(job_record_t *job_ptr) { //CLP ADDED
   debug2("%s: Starting update_job_usage", __func__);
@@ -577,7 +599,7 @@ void update_job_usage(job_record_t *job_ptr) { //CLP ADDED
     return;
   }
 
-/*
+
   // get usage info from remote (if needed)
   //AG TODO: implement "if needed" check
   cJSON * utilization = _get_job_usage(variety_id);
@@ -585,7 +607,7 @@ void update_job_usage(job_record_t *job_ptr) { //CLP ADDED
     debug2("%s: Error getting job utilization. Is the server on?", __func__);
     return;
   }
-
+/*
   //// set usage for the job
 
   cJSON * json_object;
