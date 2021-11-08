@@ -607,7 +607,7 @@ void update_job_usage(job_record_t *job_ptr) { //CLP ADDED
     debug2("%s: Error getting job utilization. Is the server on?", __func__);
     return;
   }
-/*
+
   //// set usage for the job
 
   cJSON * json_object;
@@ -638,7 +638,6 @@ void update_job_usage(job_record_t *job_ptr) { //CLP ADDED
           __func__, job_desc->licenses);
       }
 	*/
-   /* }
+    }
   }
-*/
 }
