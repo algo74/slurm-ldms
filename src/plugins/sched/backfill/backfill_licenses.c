@@ -428,12 +428,29 @@ int bitmap2node_avail (bitstr_t *bitmap) //CLP ADDED
 #include "cJSON_src.h" //CLP ADDED
 #include "client_src.h" //CLP ADDED
 
+static const char *REMOTE_SERVER_ENV_NAME = "VINSNL_SERVER";
+static const char *REMOTE_SERVER_STRING = "127.0.0.1:9999";
 static int sockfd = -1; //UNCOMMENT
 static char *variety_id_server = NULL;
 static char *variety_id_port = NULL;
 
-static cJSON *_send_receive(cJSON* request)
+static cJSON *_send_receive_(cJSON* request)
 {
+  /* initializing server address */
+  char *server_string = getenv(REMOTE_SERVER_ENV_NAME);
+  if (server_string == NULL) {
+    debug3("%s: env %s isn't set, using default", __func__, REMOTE_SERVER_ENV_NAME);
+    server_string = REMOTE_SERVER_STRING;
+  }
+  char * colon = xstrstr(server_string, ":");
+  if (!colon) {
+    error("backfill: malformed sever string: \"%s\"", server_string);
+    return SLURM_ERROR;
+  }
+  variety_id_server = xstrndup(server_string, colon - server_string);
+  variety_id_port = xstrdup(colon+1);
+  debug3("%s: addr: %s, port: %s", __func__, variety_id_server, variety_id_port);
+
   int tries = 0;
   const int max_tries = 3;
 RETRY:
@@ -449,14 +466,14 @@ RETRY:
     sockfd = connect_to_simple_server(variety_id_server, variety_id_port);
   }
   if (sockfd <= 0) {
-    error("%s: could not connect to the server for job_submit",
+    error("%s: could not connect to the server for backfill",
         __func__);
     return NULL;
   }
 
   cJSON *resp = send_receive(sockfd, request);
   if (!resp) {
-    error("%s: did not get expected response from the server for job_submit",
+    error("%s: did not get expected response from the server for backfill",
         __func__);
     close(sockfd);
     sockfd = -1;
@@ -466,7 +483,7 @@ RETRY:
   return resp;
 }
 
-static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
+static char *_get_variety_id_(job_record_t *job_ptr) //CLP ADDED
 {
   uint32_t uid = 0;
 
@@ -484,18 +501,18 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
       for(c = equalchar+1; c < semicolon; c++) {
         if (!isalnum(c) && *c != '_') {
           // a wrong character in jobname
-          error("_get_variety_id: wrong character in jobtype: '%c'", *c);
+          error("_get_variety_id_: wrong character in jobtype: '%c'", *c);
           return NULL;
         }
       }
       int len = semicolon-equalchar;
       char *jobname = xstrndup(equalchar+1, len-1);
-      debug3("_get_variety_id: Job type is '%s'", jobname);
+      debug3("_get_variety_id_: Job type is '%s'", jobname);
       // prepare request for jobtype option
       cJSON_AddStringToObject(request, "type", "variety_id/manual");
       cJSON_AddStringToObject(request, "variety_name", jobname);
     } else {
-      error("_get_variety_id: no semicolon after jobtype");
+      error("_get_variety_id_: no semicolon after jobtype");
           return NULL;
     }
   } else {
@@ -506,10 +523,10 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
     //cJSON_AddStringToObject(request, "script_name", job_desc->script);
     //cJSON_AddStringToObject(request, "script_name", job_ptr->details->script);
     //cJSON_AddStringToObject(request, "script_name", "");
-    //debug3("_get_variety_id: job_desc->script is \"%s\"", job_desc->script);
-    //debug3("_get_variety_id: job_desc->script is \"%s\"", job_ptr->details->script);
-    //debug3("_get_variety_id: job_desc->script is \"%s\"", "");
-    //debug3("_get_variety_id: job_desc->job_id_str is \"%s\"", job_desc->job_id_str);
+    //debug3("_get_variety_id_: job_desc->script is \"%s\"", job_desc->script);
+    //debug3("_get_variety_id_: job_desc->script is \"%s\"", job_ptr->details->script);
+    //debug3("_get_variety_id_: job_desc->script is \"%s\"", "");
+    //debug3("_get_variety_id_: job_desc->job_id_str is \"%s\"", job_desc->job_id_str);
     //int count = job_desc->argc;
     /*int count = job_ptr->details->argc;
     int i;
@@ -517,8 +534,8 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
     {
         //char * n = job_desc->argv[i];
         char * n = job_ptr->details->argv[i];
-        if(!n) error("_get_variety_id: job_desc->argv[%d] is NULL", i);
-        else debug3("_get_variety_id: job_desc->argv[%d] is \"%s\"", i, n);
+        if(!n) error("_get_variety_id_: job_desc->argv[%d] is NULL", i);
+        else debug3("_get_variety_id_: job_desc->argv[%d] is \"%s\"", i, n);
     }*/
 //    for (i = 0; (i < (size_t)job_desc->env_size); i++)
 //    {
@@ -545,7 +562,7 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
   cJSON_AddStringToObject(request, "UID", buf);
   //AG TODO: add groupid
 
-  cJSON * resp = _send_receive(request);
+  cJSON * resp = _send_receive_(request);
 
   if(resp == NULL){
     error("%s: could not get response from variety_id server", __func__);
@@ -566,13 +583,13 @@ static char *_get_variety_id(job_record_t *job_ptr) //CLP ADDED
   return variety_id;
 }
 
-static cJSON *_get_job_usage(char *variety_id) //CLP ADDED
+static cJSON *_get_job_usage_(char *variety_id) //CLP ADDED
 {
   cJSON *request = cJSON_CreateObject();
   cJSON_AddStringToObject(request, "type", "job_utilization");
   cJSON_AddStringToObject(request, "variety_id", variety_id);
 
-  cJSON *resp = _send_receive(request);
+  cJSON *resp = _send_receive_(request);
 
   if(resp == NULL){
     error("%s: could not get job utilization from server", __func__);
@@ -593,7 +610,7 @@ void update_job_usage(job_record_t *job_ptr) { //CLP ADDED
   debug2("%s: Starting update_job_usage", __func__);
 
   // get variety_id
-  char *variety_id = _get_variety_id(job_ptr);
+  char *variety_id = _get_variety_id_(job_ptr);
   if (!variety_id) {
     debug2("%s: Error getting variety id. Is the server on?", __func__);
     return;
@@ -602,7 +619,7 @@ void update_job_usage(job_record_t *job_ptr) { //CLP ADDED
 
   // get usage info from remote (if needed)
   //AG TODO: implement "if needed" check
-  cJSON * utilization = _get_job_usage(variety_id);
+  cJSON * utilization = _get_job_usage_(variety_id);
   if (!utilization) {
     debug2("%s: Error getting job utilization. Is the server on?", __func__);
     return;

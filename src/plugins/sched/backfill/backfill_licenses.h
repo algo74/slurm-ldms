@@ -54,10 +54,6 @@ float compute_r_star_bar(); //CLP ADDED
 
 void compute_and_set_r_star_bar(lic_tracker_p lt); //CLP ADDED
 
-static char *_get_variety_id(job_record_t *job_ptr); //CLP ADDED
-
-static cJSON *_get_job_usage(char *variety_id); //CLP ADDED
-
 void update_job_usage(job_record_t *job_ptr); //CLP ADDED
 
 #endif /* SRC_PLUGINS_SCHED_BACKFILL_BACKFILL_LICENSES_H_ */
