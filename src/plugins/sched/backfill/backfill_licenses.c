@@ -631,7 +631,7 @@ void update_job_usage(job_record_t *job_ptr) { //CLP ADDED
   char *end_num;
 
   // lustre
-
+  //if (!_license_exist(job_desc->licenses, "lustre")) { //We want to modify an existing license
   json_object = cJSON_GetObjectItem(utilization, "lustre");
   if (!json_object) {
     debug2("%s: didn't get lustre param from server for variety_id %s",
@@ -648,7 +648,7 @@ void update_job_usage(job_record_t *job_ptr) { //CLP ADDED
       debug3("%s: got zero lustre param from server for variety_id %s",
         __func__, variety_id);
     } else {
-      debug3("%s: MADE IT THIS FAR, num = %ld", num);
+      debug3("%s: Implement function to update lustre, num = %ld", num);
 	/*
       if (!_add_license_to_job_desc(job_desc, "lustre", num)) {
         error("%s: can't update licenses: %s",
@@ -657,4 +657,5 @@ void update_job_usage(job_record_t *job_ptr) { //CLP ADDED
 	*/
     }
   }
+  //}
 }

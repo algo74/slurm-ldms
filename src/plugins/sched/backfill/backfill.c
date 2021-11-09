@@ -1641,7 +1641,7 @@ static int _attempt_backfill(void)
 		bf_job_priority  = job_queue_rec->priority;
 		bf_array_task_id = job_queue_rec->array_task_id;
 
-		update_job_usage(job_ptr); //CLP ADDED
+		//update_job_usage(job_ptr); //CLP ADDED
 		compute_and_set_r_star_bar(lt); //CLP ADDED
 
 		job_queue_rec_prom_resv(job_queue_rec);
