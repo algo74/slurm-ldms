@@ -114,7 +114,10 @@ int sort_int_list(void *x, void *y) //CLP ADDED
 
 }
 
+
 void update_license(job_record_t *job_ptr, long num) { //CLP ADDED
+
+  if(job_ptr == NULL || job_ptr->license_list == NULL) return;
   ListIterator j_iter = list_iterator_create(job_ptr->license_list);
   licenses_t *license_entry;
   while ((license_entry = list_next(j_iter))) {
@@ -126,6 +129,7 @@ void update_license(job_record_t *job_ptr, long num) { //CLP ADDED
   }
   list_iterator_destroy(j_iter);
 }
+
 
 float compute_r_star_bar() { //CLP ADDED
 
