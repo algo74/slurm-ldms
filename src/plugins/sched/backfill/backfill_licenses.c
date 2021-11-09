@@ -114,6 +114,19 @@ int sort_int_list(void *x, void *y) //CLP ADDED
 
 }
 
+void update_license(job_record_t *job_ptr, long num) { //CLP ADDED
+  ListIterator j_iter = list_iterator_create(job_ptr->license_list);
+  licenses_t *license_entry;
+  while ((license_entry = list_next(j_iter))) {
+    debug3("%s: license_entry->name = %s, license_entry->total = %ld", __func__, license_entry->name, license_entry->total);
+    if(strcmp(license_entry->name, "lustre") == 0)
+    {
+      license_entry->total = num;
+    }    
+  }
+  list_iterator_destroy(j_iter);
+}
+
 float compute_r_star_bar() { //CLP ADDED
 
   List r_star_list = list_create(NULL);
@@ -647,8 +660,10 @@ void update_job_usage(job_record_t *job_ptr) { //CLP ADDED
     } else if (num == 0) {
       debug3("%s: got zero lustre param from server for variety_id %s",
         __func__, variety_id);
+	update_license(job_ptr, num);
     } else {
       debug3("%s: Implement function to update lustre, num = %ld", num);
+      update_license(job_ptr, num);
 	/*
       if (!_add_license_to_job_desc(job_desc, "lustre", num)) {
         error("%s: can't update licenses: %s",
