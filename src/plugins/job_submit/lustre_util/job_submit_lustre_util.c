@@ -402,6 +402,7 @@ static cJSON *_get_job_usage(char *variety_id)
 
 static void _set_variety_id(job_desc_msg_t *job_desc, char *variety_id)
 {
+  // store the variety_id in the comment field
   char *comment = job_desc->comment;
   char *new_comment = xstrdup_printf("variety_id=%s;%s", variety_id, comment);
   job_desc->comment = new_comment;
@@ -515,7 +516,6 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
     variety_id = xstrdup("N/A");
   }
 
-  // store the variety_id in the comment field
   _set_variety_id(job_desc, variety_id);
 
   // store variety_id so that compute notes can access it
@@ -523,7 +523,9 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
 
   // get usage info from remote (if needed)
   /*AG TODO: implement "if needed" check*/
+  //AG MOD: we will handle resource utilization estimates in the scheduler
   // rc = _update_job_utilization_from_remote(job_desc, variety_id, err_msg);
+
 
   xfree(variety_id);
 
