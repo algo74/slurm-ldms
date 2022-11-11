@@ -402,11 +402,102 @@ static cJSON *_get_job_usage(char *variety_id)
 
 
 
+static int _update_job_utilization_from_remote(job_desc_msg_t *job_desc, char *variety_id, char **err_msg)
+{
+  cJSON *utilization = _get_job_usage(variety_id);
+  if (!utilization)
+  {
+    *err_msg = xstrdup("Error getting job utilization. Is the server on?");
+    return SLURM_ERROR;
+  }
+
+  //// set usage for the job
+  cJSON *json_object;
+  char *end_num;
+
+  // time_limit
+  if (job_desc->time_limit == NO_VAL)
+  {
+    json_object = cJSON_GetObjectItem(utilization, "time_limit");
+    if (!json_object)
+    {
+      debug2("%s: didn't get time_limit from server for variety_id %s",
+             __func__, variety_id);
+    }
+    else if (!cJSON_IsString(json_object))
+    {
+      error("%s: malformed time_limit from server for variety_id %s",
+            __func__, variety_id);
+    }
+    else
+    {
+      long time_limit = strtol(json_object->valuestring, &end_num, 10);
+      if (*end_num != '\0' || time_limit < 0)
+      {
+        error("%s: can't understand time_limit from server: %s",
+              __func__, json_object->valuestring);
+      }
+      else if (time_limit == 0)
+      {
+        debug3("%s: got zero time_limit from server for variety_id %s",
+               __func__, variety_id);
+      }
+      else
+      {
+        job_desc->time_limit = time_limit;
+      }
+    }
+  }
+
+  // lustre
+  if (!_license_exist(job_desc->licenses, "lustre"))
+  {
+    json_object = cJSON_GetObjectItem(utilization, "lustre");
+    if (!json_object)
+    {
+      debug2("%s: didn't get lustre param from server for variety_id %s",
+             __func__, variety_id);
+    }
+    else if (!cJSON_IsString(json_object))
+    {
+      error("%s: malformed lustre param from server for variety_id %s",
+            __func__, variety_id);
+    }
+    else
+    {
+      long num = strtol(json_object->valuestring, &end_num, 10);
+      if (*end_num != '\0' || num < 0)
+      {
+        error("%s: can't understand lustre param from server: %s",
+              __func__, json_object->valuestring);
+      }
+      else if (num == 0)
+      {
+        debug3("%s: got zero lustre param from server for variety_id %s",
+               __func__, variety_id);
+      }
+      else
+      {
+        if (!_add_license_to_job_desc(job_desc, "lustre", num))
+        {
+          error("%s: can't update licenses: %s",
+                __func__, job_desc->licenses);
+        }
+      }
+    }
+  }
+
+  cJSON_Delete(utilization);
+  return SLURM_SUCCESS;
+}
+
+
+
 extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
 		      char **err_msg)
 {
 	// NOTE: no job id actually exists yet (=NO_VAL)
-
+  int rc = SLURM_SUCCESS;
   // get variety_id
   char *variety_id = _get_variety_id(job_desc, submit_uid);
   if (!variety_id) {
@@ -426,74 +517,14 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
 
   // get usage info from remote (if needed)
   /*AG TODO: implement "if needed" check*/
-  cJSON * utilization = _get_job_usage(variety_id);
-  if (!utilization) {
-    *err_msg = xstrdup("Error getting job utilization. Is the server on?");
-    return SLURM_ERROR;
-  }
-
-  //// set usage for the job
-
-  cJSON * json_object;
-  char *end_num;
-
-  // time_limit
-  if (job_desc->time_limit == NO_VAL) {
-    json_object = cJSON_GetObjectItem(utilization, "time_limit");
-    if (!json_object) {
-      debug2("%s: didn't get time_limit from server for variety_id %s",
-          __func__, variety_id);
-    } else if (!cJSON_IsString(json_object)) {
-      error("%s: malformed time_limit from server for variety_id %s",
-          __func__, variety_id);
-    } else {
-      long time_limit = strtol(json_object->valuestring, &end_num, 10);
-      if (*end_num != '\0' || time_limit < 0) {
-        error("%s: can't understand time_limit from server: %s",
-            __func__, json_object->valuestring);
-      } else if (time_limit == 0) {
-        debug3("%s: got zero time_limit from server for variety_id %s",
-          __func__, variety_id);
-      } else {
-        job_desc->time_limit = time_limit;
-      }
-    }
-  }
-
-  // lustre
-  if (!_license_exist(job_desc->licenses, "lustre")) {
-    json_object = cJSON_GetObjectItem(utilization, "lustre");
-    if (!json_object) {
-      debug2("%s: didn't get lustre param from server for variety_id %s",
-          __func__, variety_id);
-    } else if (!cJSON_IsString(json_object)) {
-      error("%s: malformed lustre param from server for variety_id %s",
-          __func__, variety_id);
-    } else {
-      long num = strtol(json_object->valuestring, &end_num, 10);
-      if (*end_num != '\0' || num < 0) {
-        error("%s: can't understand lustre param from server: %s",
-            __func__, json_object->valuestring);
-      } else if (num == 0) {
-        debug3("%s: got zero lustre param from server for variety_id %s",
-          __func__, variety_id);
-      } else {
-        if (!_add_license_to_job_desc(job_desc, "lustre", num)) {
-          error("%s: can't update licenses: %s",
-            __func__, job_desc->licenses);
-        }
-      }
-    }
-  }
-
-  cJSON_Delete(utilization);
+  rc = _update_job_utilization_from_remote(job_desc, variety_id, err_msg);
 
   xfree(variety_id);
 
 
 	debug3("exiting %s", __func__);
 
-	return SLURM_SUCCESS;
+	return rc;
 }
 
 
