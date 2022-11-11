@@ -400,6 +400,16 @@ static cJSON *_get_job_usage(char *variety_id)
   return util;
 }
 
+static void _set_variety_id(job_desc_msg_t *job_desc, char *variety_id)
+{
+  char *comment = job_desc->comment;
+  char *new_comment = xstrdup_printf("variety_id=%s;%s", variety_id, comment);
+  job_desc->comment = new_comment;
+  debug3("New comment is '%s'", job_desc->comment);
+  xfree(comment);
+}
+
+
 
 
 static int _update_job_utilization_from_remote(job_desc_msg_t *job_desc, char *variety_id, char **err_msg)
@@ -502,15 +512,11 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
   char *variety_id = _get_variety_id(job_desc, submit_uid);
   if (!variety_id) {
     *err_msg = xstrdup("Error getting variety id. Is the server on?");
-    return SLURM_ERROR;
+    variety_id = xstrdup("N/A");
   }
 
   // store the variety_id in the comment field
-  char *comment = job_desc->comment;
-  char *new_comment = xstrdup_printf("variety_id=%s;%s", variety_id, comment);
-  job_desc->comment = new_comment;
-  debug3("New comment is '%s'", job_desc->comment);
-  xfree(comment);
+  _set_variety_id(job_desc, variety_id);
 
   // store variety_id so that compute notes can access it
   _add_or_update_env_param(job_desc, VARIETY_ID_ENV_NAME, variety_id);
