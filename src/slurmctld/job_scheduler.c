@@ -986,6 +986,8 @@ extern void job_queue_append_internal(job_queue_req_t *job_queue_req)
 
 static int _schedule(uint32_t job_limit)
 {
+	// AG: disable this scheduler completely so it don't interfere with the plugin
+	return 0; // We scheduled zero jobs
 	ListIterator job_iterator = NULL, part_iterator = NULL;
 	List job_queue = NULL;
 	int failed_part_cnt = 0, failed_resv_cnt = 0, job_cnt = 0;
