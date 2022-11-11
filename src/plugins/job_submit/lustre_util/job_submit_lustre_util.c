@@ -517,7 +517,7 @@ extern int job_submit(job_desc_msg_t *job_desc, uint32_t submit_uid,
 
   // get usage info from remote (if needed)
   /*AG TODO: implement "if needed" check*/
-  rc = _update_job_utilization_from_remote(job_desc, variety_id, err_msg);
+  // rc = _update_job_utilization_from_remote(job_desc, variety_id, err_msg);
 
   xfree(variety_id);
 
