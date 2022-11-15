@@ -94,8 +94,10 @@
 #include "src/slurmctld/reservation.h"
 #include "src/slurmctld/slurmctld.h"
 #include "src/slurmctld/srun_comm.h"
+
 #include "backfill.h"
 #include "backfill_licenses.h"
+#include "remote_estimates.h"
 
 #define BACKFILL_INTERVAL	30
 #define BACKFILL_RESOLUTION	60
@@ -1509,7 +1511,7 @@ static int _attempt_backfill(void)
 	time_t pack_time, orig_sched_start, orig_start_time = (time_t) 0;
   /*AG
    * node_space is a structure that should keep track of available nodes
-   * based on starting/finishing nodes
+   * based on starting/finishing jobs
    */
 	node_space_map_t *node_space;
 	struct timeval bf_time1, bf_time2;
@@ -2093,9 +2095,14 @@ next_task:
 		 * but the check seems to be broken
 		 */
 
+		// TODO: get fresh estimates
+		remote_estimates_t estimates;
+		reset_remote_estimates(&estimates);
+		get_job_utilization_from_remote(job_ptr, &estimates);
+		// TODO: use estimates for the test
 		time_t start_lic = -1; /* no need for initialization */
 		do {
-		  j = backfill_licenses_test_job(lt, job_ptr, &start_res);
+		  j = backfill_licenses_test_job(lt, job_ptr, &estimates, &start_res);
 		  if (j != SLURM_SUCCESS) {
         if (debug_flags & DEBUG_FLAG_BACKFILL)
           info("backfill: %pJ license defer",
@@ -2537,7 +2544,7 @@ skip_start:
 
 			  /* update licenses tracker */
 
-			  backfill_licenses_alloc_job(lt, job_ptr, job_ptr->start_time, job_ptr->end_time);
+			  backfill_licenses_alloc_job(lt, job_ptr, &estimates, job_ptr->start_time, job_ptr->end_time);
 
 				/* Clear assumed rejected array status */
 				reject_array_job = NULL;
@@ -2667,7 +2674,7 @@ skip_start:
 		    (job_ptr->state_reason != WAIT_BURST_BUFFER_STAGING) &&
 		    (_test_resv_overlap(node_space, avail_bitmap,
 				       start_time, end_reserve)
-		      || backfill_licenses_overlap(lt, job_ptr, job_ptr->start_time)
+		      || backfill_licenses_overlap(lt, job_ptr, &estimates, job_ptr->start_time)
 		    )
 		   ) {
 			/* This job overlaps with an existing reservation for
@@ -2778,7 +2785,7 @@ skip_start:
 		/*AG TODO: figure out if the above conditions also apply to licenses.
 		 *         For now we won't apply them
 		 */
-		backfill_licenses_alloc_job(lt, job_ptr, start_time, end_reserve);
+		backfill_licenses_alloc_job(lt, job_ptr, &estimates, start_time, end_reserve);
 
 		if (debug_flags & DEBUG_FLAG_BACKFILL_MAP)
 			_dump_node_space_table(node_space);

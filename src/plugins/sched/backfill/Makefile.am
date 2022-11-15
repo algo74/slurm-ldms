@@ -15,6 +15,8 @@ sched_backfill_la_SOURCES = backfill_wrapper.c	\
 			backfill_licenses.c \
 			usage_tracker.h \
 			usage_tracker.c \
+			remote_estimates.h \
+			remote_estimates.c \
 			backfill.c	\
 			backfill.h
 sched_backfill_la_LDFLAGS = $(PLUGIN_FLAGS)

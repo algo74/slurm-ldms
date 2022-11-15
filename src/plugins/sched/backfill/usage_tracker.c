@@ -1,4 +1,4 @@
-/*
+/**
  * usage_tracker.c
  *
  * works with SLURM
@@ -133,12 +133,23 @@ ut_int_remove_till_end(utracker_int_t ut,
 }
 
 
-/**
- * returns the time of the beginning of first interval
- * not earlier than time "after" of duration "duration" in tracker "ut"
- * during which the tracked value is below "max_value"
- * or -1 if no such interval
- */
+
+void ut_int_add(utracker_int_t ut, int value)
+{
+  if (value == 0)
+    // do nothing
+    return;
+
+  utiterator_t it = list_iterator_create(ut);
+  ut_int_item_t *next = list_next(it);
+  while (next)
+  {
+    next->value += value;
+    next = list_next(it);
+  }
+}
+
+
 time_t
 ut_int_when_below(utracker_int_t ut,
                    time_t after, time_t duration,
