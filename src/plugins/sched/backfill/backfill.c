@@ -2102,10 +2102,12 @@ next_task:
 		get_job_utilization_from_remote(job_ptr, &estimates);
 		// TODO: use estimates for the test
 		debug3("AG backfill: estimates for %pJ: timelimit=%d, lustre=%d", 
-					 job_ptr, estimates.timelimit, estimates.lustre);
+					 job_ptr, (int)estimates.timelimit, (int)estimates.lustre);
 		time_t start_lic = -1; /* no need for initialization */
 		do {
+			debug3("AG backfill: backfill_licenses_test_job %pJ.", job_ptr);
 		  j = backfill_licenses_test_job(lt, job_ptr, &estimates, &start_res);
+			debug3("AG backfill: backfill_licenses_test_job returned %d and time %d", j, (int) start_res);
 		  if (j != SLURM_SUCCESS) {
         if (debug_flags & DEBUG_FLAG_BACKFILL)
           info("backfill: %pJ license defer",
