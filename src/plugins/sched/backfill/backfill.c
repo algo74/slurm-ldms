@@ -2098,8 +2098,11 @@ next_task:
 		// TODO: get fresh estimates
 		remote_estimates_t estimates;
 		reset_remote_estimates(&estimates);
+		debug3("AG backfill: getting estimates for %pJ.", job_ptr);
 		get_job_utilization_from_remote(job_ptr, &estimates);
 		// TODO: use estimates for the test
+		debug3("AG backfill: estimates for %pJ: timelimit=%d, lustre=%d", 
+					 job_ptr, estimates.timelimit, estimates.lustre);
 		time_t start_lic = -1; /* no need for initialization */
 		do {
 		  j = backfill_licenses_test_job(lt, job_ptr, &estimates, &start_res);
