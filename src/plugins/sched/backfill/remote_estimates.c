@@ -121,11 +121,8 @@ char * get_variety_id(job_record_t *job_ptr)
       char *variety_id = xstrndup(beginning, len);
       return variety_id;
     }
-    else 
-    {
-      return xstrdup("N/A");
-    }
   }
+  return xstrdup("N/A");
 }
 
 /*
@@ -215,8 +212,8 @@ int get_variety_id_utilization_from_remote(char *variety_id, remote_estimates_t 
 int get_job_utilization_from_remote(job_record_t *job_ptr, remote_estimates_t *results) 
 // docs in the header
 {
-  char *variey_id = get_variety_id(job_ptr);
-  int rc = get_variety_id_utilization_from_remote(variey_id, results);
-  xfree(variey_id);
+  char *variety_id = get_variety_id(job_ptr);
+  int rc = get_variety_id_utilization_from_remote(variety_id, results);
+  xfree(variety_id);
   return rc;
 }

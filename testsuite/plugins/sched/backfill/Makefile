@@ -32,6 +32,8 @@ SRCT = $(wildcard $(PATHT)*.c)
 COMMON = $(wildcard $(PATHC)*.c)
 
 COMPILE=gcc -fdata-sections -ffunction-sections -c
+# -dead_strip is for MacOS 
+# TODO: implement -Wl,--gc-sections or -Wl,--as-needed for other systems
 LINK=gcc -Wl,-dead_strip
 DEPEND=gcc -MM -MG -MF
 CFLAGS=-I. -I$(ROOT) -I$(PATHU) -I$(PATHS) -I$(PATHC) -DTEST
@@ -39,17 +41,18 @@ CFLAGS=-I. -I$(ROOT) -I$(PATHU) -I$(PATHS) -I$(PATHC) -DTEST
 RESULTS = $(patsubst $(PATHT)Test_%.c,$(PATHR)Test_%.txt,$(SRCT) )
 DEPS = $(patsubst $(PATHC)%.c,$(PATHD)%.d,$(COMMON) )
 
-PASSED = `grep -s PASS $(PATHR)*.txt`
-FAIL = `grep -s FAIL $(PATHR)*.txt`
-IGNORE = `grep -s IGNORE $(PATHR)*.txt`
+PASSED = `grep -sh PASS $(PATHR)*.txt`
+FAIL = `grep -sh FAIL $(PATHR)*.txt`
+IGNORE = `grep -sh IGNORE $(PATHR)*.txt`
 
 test: $(BUILD_PATHS) $(RESULTS)
+	@echo "-----------------------\nPASSED:\n-----------------------"
+	@echo "$(PASSED)"
 	@echo "-----------------------\nIGNORES:\n-----------------------"
 	@echo "$(IGNORE)"
 	@echo "-----------------------\nFAILURES:\n-----------------------"
 	@echo "$(FAIL)"
-	@echo "-----------------------\nPASSED:\n-----------------------"
-	@echo "$(PASSED)"
+
 	@echo "\nDONE"
 
 
@@ -60,14 +63,14 @@ $(PATHR)%.txt: $(PATHB)%.$(TARGET_EXTENSION)
 $(PATHB)Test_main.$(TARGET_EXTENSION): $(PATHO)unity.o  $(PATHO)Test_main.o 
 	$(LINK) -o $@ $^
 
-$(PATHB)Test_remote_estimates.$(TARGET_EXTENSION): $(PATHO)unity.o  $(PATHO)Test_remote_estimates.o $(PATHO)remote_estimates.o $(PATHO)client.o $(PATHO)cJSON.o $(DEPS)
+$(PATHB)Test_remote_estimates.$(TARGET_EXTENSION): $(PATHO)unity.o  $(PATHO)Test_remote_estimates.o $(PATHO)remote_estimates.o $(PATHO)cJSON.o $(DEPS)
 	$(LINK) -o $@ $^
 
 
 # $(PATHB)Test_%.$(TARGET_EXTENSION):: $(PATHO)Test_%.o $(PATHO)%.o $(PATHO)unity.o #$(PATHD)Test%.d
 # 	$(LINK) -o $@ $^
 
-$(PATHO)%.o:: $(PATHT)%.c
+$(PATHO)Test_%.o:: $(PATHT)Test_%.c $(PATHS)%.h
 	$(COMPILE) $(CFLAGS) $< -o $@
 
 $(PATHO)%.o:: $(PATHS)%.c $(PATHS)%.h

@@ -17,7 +17,7 @@ typedef struct remote_estimates_s
 } remote_estimates_t;
 
 
-inline reset_remote_estimates(remote_estimates_t *estimates) {
+static inline void reset_remote_estimates(remote_estimates_t *estimates) {
   estimates->lustre = 0;
   estimates->timelimit = 0;
 }
