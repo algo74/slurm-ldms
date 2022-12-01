@@ -34,7 +34,7 @@ static inline void reset_remote_estimates(remote_estimates_t *estimates) {
 
 /*
   * Returns 0 if all good 1 if not timelimit, 2 if no lustre, and 3 if none.
-  * Updates results with the obtained utilization estimates.
+  * Updates "results" with the obtained utilization estimates.
   * Caller keeps the ownership of all arguments.
   */
 int

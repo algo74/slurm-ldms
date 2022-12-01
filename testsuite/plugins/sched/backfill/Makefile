@@ -20,16 +20,22 @@ PATHU = ../../../Unity-master/src/
 ROOT = ../../../../
 PATHS = $(ROOT)src/plugins/sched/backfill/
 PATHC = $(ROOT)src/common/
+PATHCO = build/comobjs/
+PATHCtrld = $(ROOT)src/slurmctld/
+PATHCtrldO = build/slurmctld/
+Ctrld_0 = $(patsubst $(PATHCtrld)%.c,$(PATHCtrldO)%.o,$(filter-out %controller.c,$(wildcard $(PATHCtrld)*.c)))
+# PATH
 PATHT = ./
 PATHB = build/
-PATHD = build/depends/
 PATHO = build/objs/
 PATHR = build/results/
 
-BUILD_PATHS = $(PATHB) $(PATHD) $(PATHO) $(PATHR)
+BUILD_PATHS = $(PATHB) $(PATHCO) $(PATHO) $(PATHR) $(PATHCtrldO)
 
 SRCT = $(wildcard $(PATHT)*.c)
-COMMON = $(wildcard $(PATHC)*.c)
+
+COMMON_C = $(wildcard $(PATHC)*.c)
+COMMON_O = $(patsubst $(PATHC)%.c,$(PATHCO)%.o,$(COMMON_C) )
 
 COMPILE=gcc -fdata-sections -ffunction-sections -c
 # -dead_strip is for MacOS 
@@ -39,11 +45,11 @@ DEPEND=gcc -MM -MG -MF
 CFLAGS=-I. -I$(ROOT) -I$(PATHU) -I$(PATHS) -I$(PATHC) -DTEST
 
 RESULTS = $(patsubst $(PATHT)Test_%.c,$(PATHR)Test_%.txt,$(SRCT) )
-DEPS = $(patsubst $(PATHC)%.c,$(PATHD)%.d,$(COMMON) )
 
-PASSED = `grep -sh PASS $(PATHR)*.txt`
-FAIL = `grep -sh FAIL $(PATHR)*.txt`
-IGNORE = `grep -sh IGNORE $(PATHR)*.txt`
+PASSED = `grep -sh :PASS $(PATHR)*.txt`
+FAIL = `grep -sh :FAIL $(PATHR)*.txt`
+IGNORE = `grep -sh :IGNORE $(PATHR)*.txt`
+INCOMPLETE = `grep -L -- '^-----------------------$$' $(PATHR)*.txt`
 
 test: $(BUILD_PATHS) $(RESULTS)
 	@echo "-----------------------\nPASSED:\n-----------------------"
@@ -52,6 +58,8 @@ test: $(BUILD_PATHS) $(RESULTS)
 	@echo "$(IGNORE)"
 	@echo "-----------------------\nFAILURES:\n-----------------------"
 	@echo "$(FAIL)"
+	@echo "-----------------------\nRUN ERROR:\n-----------------------"
+	@echo "$(INCOMPLETE)"
 
 	@echo "\nDONE"
 
@@ -63,50 +71,56 @@ $(PATHR)%.txt: $(PATHB)%.$(TARGET_EXTENSION)
 $(PATHB)Test_main.$(TARGET_EXTENSION): $(PATHO)unity.o  $(PATHO)Test_main.o 
 	$(LINK) -o $@ $^
 
-$(PATHB)Test_remote_estimates.$(TARGET_EXTENSION): $(PATHO)unity.o  $(PATHO)Test_remote_estimates.o $(PATHO)remote_estimates.o $(PATHO)cJSON.o $(DEPS)
+$(PATHB)Test_remote_estimates.$(TARGET_EXTENSION): $(PATHO)unity.o  $(PATHO)Test_remote_estimates.o $(PATHO)remote_estimates.o $(PATHO)cJSON.o $(COMMON_O)
 	$(LINK) -o $@ $^
 
 
-# $(PATHB)Test_%.$(TARGET_EXTENSION):: $(PATHO)Test_%.o $(PATHO)%.o $(PATHO)unity.o #$(PATHD)Test%.d
+$(PATHB)Test_backfill_licenses.$(TARGET_EXTENSION): $(PATHO)unity.o  $(PATHO)Test_backfill_licenses.o $(PATHO)backfill_licenses.o $(PATHO)usage_tracker.o $(COMMON_O) $(Ctrld_0)
+	$(LINK) -o $@ $^
+
+# $(PATHB)Test_%.$(TARGET_EXTENSION):: $(PATHO)Test_%.o $(PATHO)%.o $(PATHO)unity.o #$(PATHCO)Test%.d
 # 	$(LINK) -o $@ $^
 
-$(PATHO)Test_%.o:: $(PATHT)Test_%.c $(PATHS)%.h
+$(PATHO)Test_%.o:: $(PATHT)Test_%.c $(wildcard $(PATHS)%.h)
 	$(COMPILE) $(CFLAGS) $< -o $@
 
 $(PATHO)%.o:: $(PATHS)%.c $(PATHS)%.h
 	$(COMPILE) $(CFLAGS) $< -o $@
 
 $(PATHO)%.o:: $(PATHC)%.c $(PATHC)%.h
-	$(COMPILE) $(CFLAGS) $< -o $@
-
+	@$(COMPILE) $(CFLAGS) $< -o $@
 
 $(PATHO)%.o:: $(PATHU)%.c $(PATHU)%.h
 	$(COMPILE) $(CFLAGS) $< -o $@
 
-$(PATHD)%.d:: $(PATHC)%.c
+$(PATHCO)%.o:: $(PATHC)%.c
 	$(COMPILE) $(CFLAGS) $< -o $@
 
-$(PATHB):
-	$(MKDIR) $(PATHB)
+$(PATHCtrldO)%.o:: $(PATHCtrld)%.c
+	$(COMPILE) $(CFLAGS) $< -o $@
 
-$(PATHD):
-	$(MKDIR) $(PATHD)
 
-$(PATHO):
-	$(MKDIR) $(PATHO)
+# $(PATHB):
+# 	$(MKDIR) $(PATHB)
 
-$(PATHR):
-	$(MKDIR) $(PATHR)
+# $(PATHCO):
+# 	$(MKDIR) $(PATHCO)
 
+# $(PATHO):
+# 	$(MKDIR) $(PATHO)
+
+# $(PATHR):
+# 	$(MKDIR) $(PATHR)
+
+$(BUILD_PATHS):
+	$(MKDIR) $@
 
 
 clean:
-	$(CLEANUP) $(PATHO)*.o
-	$(CLEANUP) $(PATHB)*.$(TARGET_EXTENSION)
-	$(CLEANUP) $(PATHR)*.txt
-	$(CLEANUP) $(PATHD)*.d
+	$(CLEANUP) $(PATHB)
+
 
 .PRECIOUS: $(PATHB)Test_%.$(TARGET_EXTENSION)
-.PRECIOUS: $(PATHD)%.d
+.PRECIOUS: $(PATHCO)%.o
 .PRECIOUS: $(PATHO)%.o
 .PRECIOUS: $(PATHR)%.txt

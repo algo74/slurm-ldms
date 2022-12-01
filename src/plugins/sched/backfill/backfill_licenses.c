@@ -73,21 +73,24 @@ void _lt_return_single_lic(lic_tracker_p lt, char *name, uint32_t value,
   }
 }
 
-// returns number of
-u_int32_t lt_return_lic(lic_tracker_p lt, job_record_t *job_ptr,
+// "returns" licenses used by the job to the license tracker
+void _lt_return_lic(lic_tracker_p lt, job_record_t *job_ptr,
                         remote_estimates_t *estimates) {
   /*AG TODO: implement reservations */
-  ListIterator j_iter = list_iterator_create(job_ptr->license_list);
-  licenses_t *license_entry;
-  lt_entry_t *lt_entry;
+  
   // AG TODO: better way to merge estimates with user data
   bool lustre_found = false;
-  while ((license_entry = list_next(j_iter))) {
-    if (xstrcmp(license_entry->name, LUSTRE) == 0) lustre_found = true;
-    _lt_return_single_lic(lt, license_entry->name, license_entry->total,
-                          job_ptr);
-  }
-  list_iterator_destroy(j_iter);
+  if (job_ptr->license_list) {
+    ListIterator j_iter = list_iterator_create(job_ptr->license_list);
+    licenses_t *license_entry;
+    lt_entry_t *lt_entry;
+    while ((license_entry = list_next(j_iter))) {
+      if (xstrcmp(license_entry->name, LUSTRE) == 0) lustre_found = true;
+      _lt_return_single_lic(lt, license_entry->name, license_entry->total,
+                            job_ptr);
+    }
+    list_iterator_destroy(j_iter);
+    }
   if (!lustre_found && estimates->lustre > 0) {
     _lt_return_single_lic(lt, LUSTRE, estimates->lustre, job_ptr);
     lt->lustre_offset += estimates->lustre;
@@ -97,8 +100,10 @@ u_int32_t lt_return_lic(lic_tracker_p lt, job_record_t *job_ptr,
 }
 
 void destroy_lic_tracker(lic_tracker_p lt) {
-  list_destroy(lt->tracker);
-  xfree(lt);
+  if (lt) {
+    list_destroy(lt->tracker);
+    xfree(lt);
+  }
 }
 
 lic_tracker_p init_lic_tracker(int resolution) {
@@ -143,6 +148,9 @@ lic_tracker_p init_lic_tracker(int resolution) {
   /*AG TODO: implement reservations */
 
   /* process running jobs */
+  if(!job_list) {
+    return res;
+  }
   ListIterator job_iterator = list_iterator_create(job_list);
   while ((tmp_job_ptr = list_next(job_iterator))) {
     if (!IS_JOB_RUNNING(tmp_job_ptr) && !IS_JOB_SUSPENDED(tmp_job_ptr))
@@ -153,7 +161,7 @@ lic_tracker_p init_lic_tracker(int resolution) {
       continue;
     }
     if (end_time < now) {
-      debug3("%s: %pJ might be finish -- not skipping for now", __func__,
+      debug3("%s: %pJ might have finished -- yet processing normally", __func__,
              tmp_job_ptr);
     }
     // get estimates
@@ -164,7 +172,7 @@ lic_tracker_p init_lic_tracker(int resolution) {
       debug3("%s: %pJ has no licenses -- skipping", __func__, tmp_job_ptr);
       continue;
     }
-    lt_return_lic(res, tmp_job_ptr, &estimates);
+    _lt_return_lic(res, tmp_job_ptr, &estimates);
   }
   list_iterator_destroy(job_iterator);
   // correct lustre offest
@@ -209,7 +217,9 @@ int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr,
     return SLURM_SUCCESS;
   }
   int rc = SLURM_SUCCESS;
-  ListIterator j_iter = list_iterator_create(job_ptr->license_list);
+  ListIterator j_iter = job_ptr->license_list
+                            ? list_iterator_create(job_ptr->license_list)
+                            : NULL;
   licenses_t *license_entry;
   lt_entry_t *lt_entry;
   time_t curr_start = orig_start;
@@ -217,45 +227,49 @@ int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr,
   enum { FIRST_TIME, RESET, CONTINUE, ERROR } status = RESET;
   while (status == RESET) {
     status = FIRST_TIME;
-    list_iterator_reset(j_iter);
     lustre_found =
         false;  // AG: not strictly necessary, but reset it just in case
-    while ((license_entry = list_next(j_iter))) {
-      if (xstrcmp(license_entry->name, LUSTRE) == 0) {
-        lustre_found == true;
-      }
-      if (license_entry->total == 0) {
-        continue;
-      }
-      lt_entry =
-          list_find_first(lt->tracker, _lt_find_lic_name, license_entry->name);
-      if (lt_entry) {
-        curr_start =
-            ut_int_when_below(lt_entry->ut, prev_start, duration,
-                              lt_entry->total - license_entry->total + 1);
-        if (curr_start == -1) {
-          error("%s: Job %pJ will never get %d license \"%s\"", __func__,
-                job_ptr, license_entry->total, license_entry->name);
-          status = ERROR;
+    debug5("%s: %pJ: inside while loop", __func__, job_ptr);
+    if (j_iter) {
+      list_iterator_reset(j_iter);
+      while ((license_entry = list_next(j_iter))) {
+        if (xstrcmp(license_entry->name, LUSTRE) == 0) {
+          lustre_found = true;
+        }
+        if (license_entry->total == 0) {
+          continue;
+        }
+        lt_entry = list_find_first(lt->tracker, _lt_find_lic_name,
+                                   license_entry->name);
+        if (lt_entry) {
+          curr_start =
+              ut_int_when_below(lt_entry->ut, prev_start, duration,
+                                lt_entry->total - license_entry->total + 1);
+          if (curr_start == -1) {
+            error("%s: Job %pJ will never get %d license \"%s\"", __func__,
+                  job_ptr, license_entry->total, license_entry->name);
+            status = ERROR;
+            rc = SLURM_ERROR;
+            break;
+          }
+          if (status == FIRST_TIME) {
+            prev_start = curr_start;
+            status = CONTINUE;
+          } else if (curr_start > prev_start) {
+            prev_start = curr_start;
+            status = RESET;
+            break;
+          }
+        } else {
+          error("%s: Job %pJ require unknown license \"%s\"", __func__, job_ptr,
+                license_entry->name);
           rc = SLURM_ERROR;
+          status = ERROR;
           break;
         }
-        if (status == FIRST_TIME) {
-          prev_start = curr_start;
-          status = CONTINUE;
-        } else if (curr_start > prev_start) {
-          prev_start = curr_start;
-          status = RESET;
-          break;
-        }
-      } else {
-        error("%s: Job %pJ require unknown license \"%s\"", __func__, job_ptr,
-              license_entry->name);
-        rc = SLURM_ERROR;
-        status = ERROR;
-        break;
       }
     }
+    debug5("%s: %pJ: done with licenses list, moving to estimates", __func__, job_ptr);
     if (status != ERROR && status != RESET && !lustre_found &&
         estimates->lustre > 0) {
       lt_entry = list_find_first(lt->tracker, _lt_find_lic_name, LUSTRE);
@@ -263,8 +277,11 @@ int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr,
         uint32_t lustre = (estimates->lustre < lt_entry->total)
                               ? estimates->lustre
                               : lt_entry->total - 1;
+        debug5("%s: %pJ: trying lustre ut_int_when_below", __func__, job_ptr);
         curr_start = ut_int_when_below(lt_entry->ut, prev_start, duration,
                                        lt_entry->total - lustre + 1);
+        debug5("%s: %pJ: exited lustre ut_int_when_below. Result: %ld", __func__, job_ptr, curr_start);
+
         if (curr_start == -1) {
           // we adjust predictions so we we should not get here
           error("%s: Job %pJ will never get %d (predicted) license \"%s\"",
@@ -288,7 +305,7 @@ int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr,
       }
     }
   }
-  list_iterator_destroy(j_iter);
+  if (j_iter) list_iterator_destroy(j_iter);
   /* if the job fits at the requested time, don't update "when"
    * to avoid rounding.
    * Otherwise, update it. */
@@ -307,23 +324,25 @@ int backfill_licenses_alloc_job(lic_tracker_p lt, job_record_t *job_ptr,
     return SLURM_SUCCESS;
   }
   bool lustre_found = false;
-  ListIterator j_iter = list_iterator_create(job_ptr->license_list);
-  licenses_t *license_entry;
   lt_entry_t *lt_entry;
   start = _convert_time_floor(start, lt->resolution);
   end = _convert_time_fwd(end, lt->resolution);
-  while ((license_entry = list_next(j_iter))) {
-    if (xstrcmp(license_entry->name, LUSTRE) == 0) lustre_found = true;
-    lt_entry =
-        list_find_first(lt->tracker, _lt_find_lic_name, license_entry->name);
-    if (lt_entry) {
-      ut_int_add_usage(lt_entry->ut, start, end, license_entry->total);
-    } else {
-      error("%s: Job %pJ require unknown license \"%s\"", __func__, job_ptr,
-            license_entry->name);
+  if (job_ptr->license_list) {
+    ListIterator j_iter = list_iterator_create(job_ptr->license_list);
+    licenses_t *license_entry;
+    while (NULL != (license_entry = list_next(j_iter))) {
+      if (xstrcmp(license_entry->name, LUSTRE) == 0) lustre_found = true;
+      lt_entry =
+          list_find_first(lt->tracker, _lt_find_lic_name, license_entry->name);
+      if (lt_entry) {
+        ut_int_add_usage(lt_entry->ut, start, end, license_entry->total);
+      } else {
+        error("%s: Job %pJ require unknown license \"%s\"", __func__, job_ptr,
+              license_entry->name);
+      }
     }
+    list_iterator_destroy(j_iter);
   }
-  list_iterator_destroy(j_iter);
 
   if (!lustre_found && estimates->lustre > 0) {
     lt_entry =

@@ -67,7 +67,9 @@ void test_get_job_utilization_from_remote__exits_when_send_recieve_fails() {
 void test_get_variety_id__defaults_when_comment_empty() {
   job_record_t job_ptr = {0};
   char *variety_id = get_variety_id(&job_ptr);
-  TEST_ASSERT_EQUAL_STRING_MESSAGE(variety_id, "N/A", "When variety_id is not set, get_variety_id defaults to `N/A`");
+  TEST_ASSERT_EQUAL_STRING_MESSAGE(
+      "N/A", variety_id,
+      "When variety_id is not set, get_variety_id defaults to `N/A`");
 }
 
 void test_get_variety_id__defaults_when_comment_malformed() {
@@ -76,7 +78,7 @@ void test_get_variety_id__defaults_when_comment_malformed() {
   job_ptr.comment = comment;
   char *variety_id = get_variety_id(&job_ptr);
   TEST_ASSERT_EQUAL_STRING_MESSAGE(
-      variety_id, "N/A",
+      "N/A", variety_id,
       "When variety_id is not set, get_variety_id defaults to `N/A`");
 }
 
@@ -86,7 +88,7 @@ void test_get_variety_id__defaults_when_comment_malformed2() {
   job_ptr.comment = comment;
   char *variety_id = get_variety_id(&job_ptr);
   TEST_ASSERT_EQUAL_STRING_MESSAGE(
-      variety_id, "N/A",
+      "N/A", variety_id,
       "When variety_id is not set, get_variety_id defaults to `N/A`");
 }
 
@@ -105,9 +107,7 @@ void test_get_variety_id__w() {
   char *comment = "variety_id=w;somethingelse";
   job_ptr.comment = comment;
   char *variety_id = get_variety_id(&job_ptr);
-  TEST_ASSERT_EQUAL_STRING_MESSAGE(
-      variety_id, "w",
-      comment);
+  TEST_ASSERT_EQUAL_STRING_MESSAGE("w", variety_id, comment);
 }
 
 void test_get_variety_id__single() {
@@ -115,7 +115,7 @@ void test_get_variety_id__single() {
   char *comment = "variety_id=single;";
   job_ptr.comment = comment;
   char *variety_id = get_variety_id(&job_ptr);
-  TEST_ASSERT_EQUAL_STRING_MESSAGE(variety_id, "single", comment);
+  TEST_ASSERT_EQUAL_STRING_MESSAGE("single", variety_id, comment);
 }
 
 int main() {
