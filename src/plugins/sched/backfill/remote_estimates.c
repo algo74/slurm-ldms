@@ -24,6 +24,7 @@ static char *variety_id_port = NULL;
  */
 static cJSON *_send_receive(cJSON* request)
 {
+  debug5("%s: started _send_receive", __func__);
   int tries = 0;
   const int max_tries = 3;
 RETRY:
@@ -34,7 +35,9 @@ RETRY:
   // make sure we tried connecting
   if (sockfd <= 0) {
     // make sure we initialized server and port variables
+    debug5("%s: reconnect sockfd", __func__);
     if (variety_id_server == NULL) {
+      debug5("%s: initializing server name and port", __func__);
       char *server_string = getenv(REMOTE_SERVER_ENV_NAME);
       if (server_string == NULL)
       {
@@ -81,17 +84,23 @@ RETRY:
  */
 static cJSON *_get_job_usage(char *variety_id)
 {
+  debug5("%s: started _get_job_usage", __func__);
   cJSON *request = cJSON_CreateObject();
+  debug5("%s: adding type", __func__);
   cJSON_AddStringToObject(request, "type", "job_utilization");
+  debug5("%s: adding variety id %s", __func__, variety_id);
   cJSON_AddStringToObject(request, "variety_id", variety_id);
 
+  debug5("%s: started _send_receive", __func__);
   cJSON *resp = _send_receive(request);
+  debug5("%s: exited _send_receive", __func__);
 
   if(resp == NULL){
     error("%s: could not get job utilization from server", __func__);
     return NULL;
   }
 
+  debug5("%s: extracting response", __func__);
   cJSON *util = cJSON_GetObjectItem(resp, "response");
   if (util == NULL) {
     error("%s: bad response from server: no response field", __func__);
@@ -135,6 +144,7 @@ int get_variety_id_utilization_from_remote(char *variety_id, remote_estimates_t 
   int rc = 3; // got nothing so far
   debug5("%s: calling _get_job_usage for %s", __func__, variety_id);
   cJSON *utilization = _get_job_usage(variety_id);
+  debug5("%s: exited _get_job_usage", __func__);
   if (!utilization)
   {
     error("%s: Error getting job utilization. Is the server on?", __func__);
