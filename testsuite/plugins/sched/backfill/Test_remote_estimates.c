@@ -61,6 +61,49 @@ void test_get_job_utilization_from_remote__exits_when_send_recieve_fails() {
   TEST_ASSERT_EQUAL_INT_MESSAGE(0, estimates.lustre, "Lustre not modified");
 }
 
+void test_get_job_utilization_from_remote__all_good() {
+  sockfd = 2;
+  job_record_t job_ptr = {0};
+  remote_estimates_t estimates;
+  reset_remote_estimates(&estimates);
+  response = cJSON_Parse(
+      "{"
+        "\"status\":\"OK\","
+        "\"response\":{"
+          "\"lustre\":\"200\","
+          "\"time_limit\":\"3\""
+        "}"
+      "}");
+  int rc = get_job_utilization_from_remote(&job_ptr, &estimates);
+  TEST_ASSERT_EQUAL_INT_MESSAGE(1, count_send_recieve,
+                                "send_recieve called three times");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(0, rc, "It updates all");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(3, estimates.timelimit,
+                                "It sets timelimit");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(200, estimates.lustre, "It sets Lustre");
+}
+
+void test_get_job_utilization_from_remote__only_lustre() {
+  sockfd = 2;
+  job_record_t job_ptr = {0};
+  remote_estimates_t estimates;
+  reset_remote_estimates(&estimates);
+  response = cJSON_Parse(
+      "{"
+        "\"status\":\"OK\","
+        "\"response\":{"
+          "\"lustre\":\"200\""
+        "}"
+      "}");
+  int rc = get_job_utilization_from_remote(&job_ptr, &estimates);
+  TEST_ASSERT_EQUAL_INT_MESSAGE(1, count_send_recieve,
+                                "send_recieve called three times");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(1, rc, "no timelimit updated");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(0, estimates.timelimit,
+                                "It sets timelimit");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(200, estimates.lustre, "It sets Lustre");
+}
+
 // get_variety_id
 ////////////////////////////////////////////////////////
 
@@ -122,6 +165,8 @@ int main() {
   UNITY_BEGIN();
   RUN_TEST(test_get_job_utilization_from_remote__exits_when_nothing_works);
   RUN_TEST(test_get_job_utilization_from_remote__exits_when_send_recieve_fails);
+  RUN_TEST(test_get_job_utilization_from_remote__all_good);
+  RUN_TEST(test_get_job_utilization_from_remote__only_lustre);
   RUN_TEST(test_get_variety_id__defaults_when_comment_empty);
   RUN_TEST(test_get_variety_id__defaults_when_comment_malformed);
   RUN_TEST(test_get_variety_id__defaults_when_comment_malformed2);

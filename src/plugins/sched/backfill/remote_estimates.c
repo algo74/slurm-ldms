@@ -133,6 +133,7 @@ char * get_variety_id(job_record_t *job_ptr)
 int get_variety_id_utilization_from_remote(char *variety_id, remote_estimates_t *results)
 {
   int rc = 3; // got nothing so far
+  debug5("%s: calling _get_job_usage for %s", __func__, variety_id);
   cJSON *utilization = _get_job_usage(variety_id);
   if (!utilization)
   {
@@ -145,6 +146,7 @@ int get_variety_id_utilization_from_remote(char *variety_id, remote_estimates_t 
   char *end_num;
 
   // time_limit
+  debug5("%s: calling cJSON_GetObjectItem for time_limit", __func__);
   json_object = cJSON_GetObjectItem(utilization, "time_limit");
   if (!json_object)
   {
@@ -177,6 +179,7 @@ int get_variety_id_utilization_from_remote(char *variety_id, remote_estimates_t 
   }
 
   // lustre
+  debug5("%s: calling cJSON_GetObjectItem for lustre", __func__);
   json_object = cJSON_GetObjectItem(utilization, "lustre");
   if (!json_object)
   {
@@ -203,6 +206,7 @@ int get_variety_id_utilization_from_remote(char *variety_id, remote_estimates_t 
     }
   }
 
+  debug5("%s: calling cJSON_Delete", __func__);
   cJSON_Delete(utilization);
   return rc;
 }
