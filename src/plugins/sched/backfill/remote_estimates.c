@@ -220,7 +220,7 @@ int get_job_utilization_from_remote(job_record_t *job_ptr, remote_estimates_t *r
   char *variety_id = get_variety_id(job_ptr);
   debug5("%s: %pJ variety id: %s", __func__, job_ptr, variety_id);
   int rc = get_variety_id_utilization_from_remote(variety_id, results);
-  debug5("%s: %pJ utilization return code: ", __func__, job_ptr, rc);
+  debug5("%s: %pJ utilization return code: %d", __func__, job_ptr, rc);
   xfree(variety_id);
   debug5("%s: %pJ done", __func__, job_ptr);
   return rc;
