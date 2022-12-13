@@ -14,7 +14,8 @@
 #include "remote_estimates.h"
 
 typedef struct lic_tracker_struct {
-  List tracker;
+  List other_licenses;
+  List lustre; // this could be either usage_tracker or star_tracker
   int resolution;
   int lustre_offset;
 } lic_tracker_t;

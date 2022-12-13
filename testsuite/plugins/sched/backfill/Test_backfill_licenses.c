@@ -146,7 +146,7 @@ static int _lt_find_lic_name(void *x, void *key) {
 }
 
 static lt_entry_t *_entry_from_lt(lic_tracker_p lt, char *name) {
-  if (lt) return list_find_first(lt->tracker, _lt_find_lic_name, name);
+  if (lt) return list_find_first(lt->other_licenses, _lt_find_lic_name, name);
   else return NULL;
 }
 
