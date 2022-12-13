@@ -37,7 +37,7 @@ SRCT = $(wildcard $(PATHT)*.c)
 COMMON_C = $(wildcard $(PATHC)*.c)
 COMMON_O = $(patsubst $(PATHC)%.c,$(PATHCO)%.o,$(COMMON_C) )
 
-COMPILE=gcc -fdata-sections -ffunction-sections -c
+COMPILE=gcc -fdata-sections -ffunction-sections -g -c
 # -dead_strip is for MacOS 
 # TODO: implement -Wl,--gc-sections or -Wl,--as-needed for other systems
 LINK=gcc -Wl,-dead_strip

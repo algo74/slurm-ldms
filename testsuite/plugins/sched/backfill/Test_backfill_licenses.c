@@ -146,13 +146,19 @@ static int _lt_find_lic_name(void *x, void *key) {
 }
 
 static lt_entry_t *_entry_from_lt(lic_tracker_p lt, char *name) {
-  if (lt) return list_find_first(lt->other_licenses, _lt_find_lic_name, name);
-  else return NULL;
+  if (lt) {
+    lt_entry_t *lt_entry;
+    if (strcmp(name, "lustre") == 0) {
+      return lt->lustre.entry;
+    } else {
+      return list_find_first(lt->other_licenses, _lt_find_lic_name, name);
+    }
+  } else
+    return NULL;
 }
 
 static utracker_int_t _ut_from_lt(lic_tracker_p lt, char *name) {
-  lt_entry_t *lt_entry =
-      _entry_from_lt(lt, name);
+  lt_entry_t *lt_entry = _entry_from_lt(lt, name); 
   if (lt_entry) {
     return lt_entry->ut;
   } else {
@@ -339,6 +345,8 @@ static void _create_licenses1(void) {
 
 void setUp(void) {
   // nothing
+  fflush(stderr);
+  fflush(stdout);
   TEST_ASSERT_NULL_MESSAGE(license_list,
                            "license_list must be NULL before setup");
   TEST_ASSERT_NULL_MESSAGE(job_list,
@@ -395,6 +403,11 @@ void test_init_lic_tracker_no_job_list() {
   lt_entry_t *lt_entry = _entry_from_lt(lt, "lustre");
   TEST_ASSERT_NOT_NULL_MESSAGE(lt_entry, "lustre lt_entry must be created");
   TEST_ASSERT_EQUAL_INT_MESSAGE(1000, lt_entry->total, "lustre max must be set");
+  utracker_int_t ut = _ut_from_lt(lt, "lustre");
+  STEP_FUNC(sf, {{-1, 500}});
+  utracker_int_t expected = _ut_from_step_func(&sf);
+  _assert_ut_match(expected, ut, true, "strict");
+  ut_int_destroy(expected);
   destroy_lic_tracker(lt);
 }
 

@@ -17,11 +17,20 @@
 
 extern pthread_mutex_t license_mutex; /* from "src/slurmctld/licenses.c" */
 
+/**
+ * Entry for regular licence tracking
+*/
 typedef struct lt_entry_struct {
   char *name;
   uint32_t total;
   utracker_int_t ut;
 } lt_entry_t;
+
+static backfill_licenses_config_t config_state = BACKFLILL_LICENSES_AWARE;
+
+void configure_backfill_licenses(backfill_licenses_config_t config) {
+  config_state = config;
+}
 
 static time_t _convert_time_floor(time_t t, int resolution) {
   return (t / resolution) * resolution;
@@ -87,7 +96,6 @@ static void _lt_return_single_lic(lic_tracker_p lt, char *name, uint32_t value,
                            job_record_t *job_ptr) {
   lt_entry_t *lt_entry = list_find_first(lt->other_licenses, _lt_find_lic_name, name);
   if (lt_entry) {
-    // returning a little
     time_t t = _convert_time_fwd(job_ptr->end_time, lt->resolution);
     ut_int_remove_till_end(lt_entry->ut, t, value);
   } else {
@@ -98,11 +106,22 @@ static void _lt_return_single_lic(lic_tracker_p lt, char *name, uint32_t value,
 
 static void _lt_return_lustre(lic_tracker_p lt, int lustre_value,
                        job_record_t *job_ptr) {
-  _lt_return_single_lic(lt, LUSTRE, lustre_value, job_ptr);
+  if (lt->lustre.type == BACKFLILL_LICENSES_AWARE) {
+    lt_entry_t *lt_entry = lt->lustre.entry;
+    if (lt_entry) {
+      time_t t = _convert_time_fwd(job_ptr->end_time, lt->resolution);
+      ut_int_remove_till_end(lt_entry->ut, t, lustre_value);
+    } else {
+      error("%s: Job %pJ returned unknown license \"%s\"", __func__, job_ptr,
+            LUSTRE);
+    }
+  } else
+    error("%s: Not implemented license type", __func__);
+  
 }
 
 // "returns" licenses used by the job to the license tracker
-static void _lt_return_lic(lic_tracker_p lt, job_record_t *job_ptr,
+static void _lt_process_running_job(lic_tracker_p lt, job_record_t *job_ptr,
                         remote_estimates_t *estimates) {
   /*AG TODO: implement reservations */
   
@@ -137,6 +156,7 @@ static void _lt_return_lic(lic_tracker_p lt, job_record_t *job_ptr,
 void destroy_lic_tracker(lic_tracker_p lt) {
   if (lt) {
     list_destroy(lt->other_licenses);
+    lt_entry_delete (lt->lustre.entry);
     xfree(lt);
   }
 }
@@ -154,6 +174,8 @@ lic_tracker_p init_lic_tracker(int resolution) {
     res->other_licenses = list_create(lt_entry_delete);
     res->resolution = resolution;
     res->lustre_offset = 0;
+    res->lustre.type = BACKFLILL_LICENSES_AWARE;
+    res->lustre.entry = NULL;
     iter = list_iterator_create(license_list);
     while ((license_entry = list_next(iter))) {
       lt_entry_t *entry = xmalloc(sizeof(lt_entry_t));
@@ -162,15 +184,21 @@ lic_tracker_p init_lic_tracker(int resolution) {
       int start_value;
       if (license_entry->used < license_entry->r_used) {
         start_value = license_entry->r_used;
-        if (xstrcmp(entry->name, LUSTRE) == 0) {
-          res->lustre_offset =
-              (int)license_entry->used - (int)license_entry->r_used;
-        }
       } else {
         start_value = license_entry->used;
       }
       entry->ut = ut_int_create(start_value);
-      list_push(res->other_licenses, entry);
+      if (xstrcmp(entry->name, LUSTRE) == 0) {
+        if (res->lustre.type == BACKFLILL_LICENSES_AWARE) {
+          res->lustre.entry = entry;
+        }
+        else
+          error("%s: Not implemented license type", __func__);
+        res->lustre_offset =
+            (int)start_value - (int)license_entry->used;
+      } else {
+        list_push(res->other_licenses, entry);
+      }
     }
     list_iterator_destroy(iter);
   }
@@ -207,14 +235,16 @@ lic_tracker_p init_lic_tracker(int resolution) {
       debug3("%s: %pJ has no licenses -- skipping", __func__, tmp_job_ptr);
       continue;
     }
-    _lt_return_lic(res, tmp_job_ptr, &estimates);
+    _lt_process_running_job(res, tmp_job_ptr, &estimates);
   }
   list_iterator_destroy(job_iterator);
   // correct lustre offest
   if (res->lustre_offset > 0) {
-    lt_entry_t *lt_entry =
-        list_find_first(res->other_licenses, _lt_find_lic_name, LUSTRE);
-    ut_int_add(lt_entry->ut, res->lustre_offset);
+    if (res->lustre.type == BACKFLILL_LICENSES_AWARE) {
+      lt_entry_t *lt_entry = res->lustre.entry;
+      ut_int_add(lt_entry->ut, res->lustre_offset);
+    } else
+      error("%s: Not implemented license type", __func__);
   }
 
   return res;
@@ -254,24 +284,21 @@ int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr,
   if (job_lustre_requirement == -1) {
     // using estimate (clipped)
     // TODO (AG): refactor this
-    lt_entry_t *lt_entry =
-        list_find_first(lt->other_licenses, _lt_find_lic_name, LUSTRE);
-    if (lt_entry) {
-      if (lustre_value > 0) {
-        if (lustre_value >= lt_entry->total) lustre_value = lt_entry->total - 1;
-      }
-    } else {
-      error(
-          "%s: Job %pJ is estimated to require lustre which is not in the "
-          "licenses list",
-          __func__, job_ptr);
-      return SLURM_ERROR;
+    if (lustre_value > 0) {
+      if (lt->lustre.type == BACKFLILL_LICENSES_AWARE) {
+        lt_entry_t *lt_entry = lt->lustre.entry;
+        if (lt_entry) {
+          if (lustre_value >= lt_entry->total)
+            lustre_value = lt_entry->total - 1;
+        }
+      } else
+        error("%s: Not implemented license type", __func__);
     }
   } else {
     // using provided value
     lustre_value = job_lustre_requirement;
   }
-        
+  // TODO: is it correct to move orig_start backward?      
   time_t orig_start = _convert_time_floor(*when, lt->resolution);
   time_t duration = _convert_time_fwd(job_ptr->time_limit * 60, lt->resolution);
 
@@ -328,7 +355,10 @@ int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr,
     }
     debug5("%s: %pJ: done with \"other\" licenses, moving to lustre", __func__, job_ptr);
     if (status != ERROR && status != RESET && lustre_value > 0) {
-      lt_entry = list_find_first(lt->other_licenses, _lt_find_lic_name, LUSTRE);
+      if (lt->lustre.type == BACKFLILL_LICENSES_AWARE) {
+        lt_entry = lt->lustre.entry;
+      } else
+        error("%s: Not implemented license type", __func__);
       if (lt_entry) {
         debug5(
             "%s: %pJ: trying lustre ut_int_when_below, prev_start: %ld lustre_value: "
@@ -403,13 +433,16 @@ int backfill_licenses_alloc_job(lic_tracker_p lt, job_record_t *job_ptr,
   }
 
   if (lustre_value > 0) {
-    lt_entry =
-        list_find_first(lt->other_licenses, _lt_find_lic_name, LUSTRE);
-    if (lt_entry) {
-      ut_int_add_usage(lt_entry->ut, start, end, lustre_value);
-    } else {
-      error("%s: Job %pJ is estimated to use lustre which is not configured", __func__, job_ptr);
-    }
+    if (lt->lustre.type == BACKFLILL_LICENSES_AWARE) {
+      lt_entry = lt->lustre.entry;
+      if (lt_entry) {
+        ut_int_add_usage(lt_entry->ut, start, end, lustre_value);
+      } else {
+        error("%s: Job %pJ is estimated to use lustre which is not configured",
+              __func__, job_ptr);
+      }
+    } else
+      error("%s: Not implemented license type", __func__);
   }
   debug3("%s: allocated licenses for %pJ :", __func__, job_ptr);
   dump_lic_tracker(lt);
