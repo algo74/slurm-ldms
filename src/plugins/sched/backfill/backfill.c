@@ -98,6 +98,7 @@
 #include "backfill.h"
 #include "backfill_licenses.h"
 #include "remote_estimates.h"
+#include "backfill_configure.h"
 
 #define BACKFILL_INTERVAL	30
 #define BACKFILL_RESOLUTION	60
@@ -1615,6 +1616,9 @@ static int _attempt_backfill(void)
 	/* Ignore nodes that have been set as available during this cycle. */
 	bit_clear_all(bf_ignore_node_bitmap);
 
+	/* update configuration if needed */
+	backfill_configure();
+	
 	lic_tracker_p lt = init_lic_tracker(backfill_resolution);
 	dump_lic_tracker(lt);
 

@@ -14,16 +14,15 @@
 #include "remote_estimates.h"
 
 typedef enum {
-  BACKFLILL_LICENSES_BASIC, // no remote services (TODO)
-  BACKFLILL_LICENSES_AWARE, 
-  BACKFLILL_LICENSES_TWO_GROUP // workload-adaptive
+  BACKFILL_LICENSES_AWARE, 
+  BACKFILL_LICENSES_TWO_GROUP // workload-adaptive
 } backfill_licenses_config_t;
 
 typedef struct lic_tracker_struct {
   List other_licenses;  // regular license tracking entries
   struct {
     backfill_licenses_config_t type;
-    void *entry;  // any type of tracking entry
+    void *vp_entry;  // any type of tracking entry
   } lustre; 
   int resolution;
   int lustre_offset;
@@ -31,7 +30,10 @@ typedef struct lic_tracker_struct {
 
 typedef lic_tracker_t *lic_tracker_p;
 
-void configure_backfill_licenses(backfill_licenses_config_t config);
+backfill_licenses_config_t configure_backfill_licenses(
+    backfill_licenses_config_t config);
+
+int configure_total_node_count(int config);
 
 lic_tracker_p init_lic_tracker(int resolution);
 

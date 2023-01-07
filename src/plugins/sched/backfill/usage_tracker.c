@@ -201,7 +201,8 @@ ut_int_destroy(utracker_int_t ut) {
 static void
 ut_int_dump_item(ut_int_item_t *item) {
   char buff[32];
-  log("%24.24s : %d", ctime_r(&(item->start), buff), item->value);
+  log("%24.24s (%zu): %d", ctime_r(&(item->start), buff),
+      item->start, item->value);
 }
 
 

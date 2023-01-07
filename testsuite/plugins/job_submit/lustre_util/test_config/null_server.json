@@ -1,0 +1,5 @@
+{
+  "server" : null,
+  "total_nodes": 777,
+  "backfill_type": "TWO_GROUP"
+}

@@ -19,6 +19,7 @@
 #include "client.h"
 #include "cJSON.h"
 #include "remote_metrics.h"
+#include "lustre_util_configure.h"
 
 extern List license_list; /*AG from licenses.c */
 extern pthread_mutex_t license_mutex; /*AG from licenses.c */
@@ -83,15 +84,6 @@ extern void *remote_metrics_agent(void *args)
 
   debug3("starting remote_metrics_agent");
 
-  remote_metric_agent_arg_t *server = (remote_metric_agent_arg_t *) args;
-
-  char *addr = server->addr;
-  char *port = server->port;
-
-  debug3("%s: addr: %s, port: %s", __func__, addr, port);
-
-  xfree(server);
-
   int sockfd = 0;
 
   while(!stop_remote_metrics) {
@@ -99,8 +91,18 @@ extern void *remote_metrics_agent(void *args)
     // if not connected, attempt to connect
 
     if (sockfd <= 0) {
-      debug3("%s: connecting to addr: %s, port: %s", __func__, addr, port);
-      sockfd = connect_to_simple_server(addr, port);
+      char *server_name, *port;
+      update_and_get_server_address(server_name, port);
+      if (!server_name || !port) {
+        debug3("%s: inactive (host: %s, port: %s)", __func__, server_name, port);
+        if (server_name) xfree(server_name);
+        if (port) xfree(port);
+        continue;
+      }
+      debug3("%s: connecting to host: %s, port: %s", __func__, server_name, port);
+      sockfd = connect_to_simple_server(server_name, port);
+      xfree(server_name);
+      xfree(port);
     }
 
     // if connected, get new metrics
@@ -170,9 +172,6 @@ extern void *remote_metrics_agent(void *args)
     // sleep
     _my_sleep(5 * USEC_IN_SEC);
   }
-
-  xfree(addr);
-  xfree(port);
 
   return NULL;
 }

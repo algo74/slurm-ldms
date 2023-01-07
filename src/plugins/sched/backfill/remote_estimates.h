@@ -17,6 +17,9 @@ typedef struct remote_estimates_s
 } remote_estimates_t;
 
 
+/**
+ * Sets the estimate structure all zeroes.
+*/
 static inline void reset_remote_estimates(remote_estimates_t *estimates) {
   estimates->lustre = 0;
   estimates->timelimit = 0;
@@ -30,14 +33,23 @@ static inline void reset_remote_estimates(remote_estimates_t *estimates) {
 //   return res;
 // }
 
-
+/**
+ * Initializes server name and port configuration.
+ * Note that already established connections are not refreshed.
+ */
+void config_vinsnl_server(char *server, char *port);
 
 /*
   * Returns 0 if all good 1 if not timelimit, 2 if no lustre, and 3 if none.
   * Updates "results" with the obtained utilization estimates.
   * Caller keeps the ownership of all arguments.
   */
-int
-get_job_utilization_from_remote(job_record_t *job_ptr, remote_estimates_t *results);
+int get_job_utilization_from_remote(job_record_t *job_ptr, remote_estimates_t *results);
+
+/**
+ * Resets the inner state.
+ * This function may be only needed for testing.
+ */
+void reset_connection();
 
 #endif // SRC_PLUGINS_SCHED_REMOTE_ESTIMATES_H_

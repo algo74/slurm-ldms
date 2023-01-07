@@ -1,0 +1,6 @@
+{
+  "server" : {
+    "name": "server2.json_name",
+    "port": "server2.json_port"
+  }
+}

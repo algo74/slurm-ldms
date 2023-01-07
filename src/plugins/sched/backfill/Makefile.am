@@ -11,16 +11,18 @@ AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/src/common
 pkglib_LTLIBRARIES = sched_backfill.la
 
 sched_backfill_la_SOURCES = backfill_wrapper.c	\
-			backfill.c	\
-			backfill.h	\
-			backfill_licenses.h \
+			backfill_configure.c \
+			backfill_configure.h \
 			backfill_licenses.c \
-			cJSON.h	\
+			backfill_licenses.h \
+			backfill.h	\
+			backfill.c	\
 			cJSON.c	\
-			client.h	\
+			cJSON.h	\
 			client.c	\
-			remote_estimates.h	\
+			client.h	\
 			remote_estimates.c	\
-			usage_tracker.h	\
-			usage_tracker.c
+			remote_estimates.h	\
+			usage_tracker.c \
+			usage_tracker.h
 sched_backfill_la_LDFLAGS = $(PLUGIN_FLAGS)

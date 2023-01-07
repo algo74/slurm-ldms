@@ -1,0 +1,8 @@
+{
+  "server" : {
+    "name": "server.json_name",
+    "port": "server.json_port"
+  },
+  "total_nodes": null,
+  "backfill_type": "TWO_GROUP"
+}

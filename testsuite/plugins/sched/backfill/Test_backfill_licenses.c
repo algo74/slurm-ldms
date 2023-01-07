@@ -1,4 +1,7 @@
+
 #include "unity.h"
+#include "execinfo.h"
+#include "signal.h"
 
 #include "list.h"
 #include "log.h"
@@ -10,12 +13,21 @@
 #include "src/slurmctld/slurmctld.h"
 #include "src/common/xstring.h"
 
+#include "override_internal.h"
+
 #define COUNT_OF(x) \
   ((sizeof(x) / sizeof(0 [x])) / ((size_t)(!(sizeof(x) % sizeof(0 [x])))))
 
 /************************************************************
  Mocks
 ************************************************************/
+
+static time_t _my_time = 10000;
+static time_func_p old_time_func;
+
+static time_t my_time(time_t *arg) {
+  return _my_time;
+}
 
 int _default_get_job_utilization_from_remote(job_record_t *job_ptr,
                                     remote_estimates_t *results) {
@@ -30,103 +42,26 @@ int get_job_utilization_from_remote(job_record_t *job_ptr,
   return mock_job_utilization_from_remote(job_ptr, results);
 }
 
-void _reset_mocks() {
+void _clear_server_strings() {
   mock_job_utilization_from_remote =
     _default_get_job_utilization_from_remote;
 }
 
+/** bitmaps **/
+
 
 /************************************************************
- INTERNALS
+ INTERNALS (duplicated here from implementation)
 ************************************************************/
+
+/** from Slurm core **/
+uint16_t accounting_enforce = 0;
 
 /** for usage_tracker **/
 typedef struct ut_int_struct {
   time_t start;
   int value;
 } ut_int_item_t;
-
-static void _assert_ut_match(utracker_int_t expected, utracker_int_t actual,
-                             bool strict, char *comment) {
-  // TODO(AG): debug
-  const size_t N = 1024;
-  static char message[N+1];
-  xfree(message);
-  size_t ie = 0;
-  ListIterator ex_it = list_iterator_create(expected);
-  ListIterator ac_it = list_iterator_create(actual);
-  ut_int_item_t *ex_next = list_next(ex_it);
-  ut_int_item_t *ac_next = list_next(ac_it);
-  int ex_prev = ex_next->value;
-  int ac_prev = ac_next->value;
-  if(ac_next->start != ex_next->start) {
-    snprintf(message, N, "%s: Start times expected: %ld, actual: %ld", comment, ex_next->start, ac_next->start);
-    TEST_FAIL_MESSAGE(message);
-  };
-  if(ac_next->value != ex_next->value) {
-    snprintf(message, N, "%s: Start values expected: %d, actual: %d", comment, ex_next->value, ac_next->value);
-    TEST_FAIL_MESSAGE(message);
-  };
-  ex_next = list_next(ex_it); 
-  ac_next = list_next(ac_it);
-  int ex_i=2, ac_i=2;
-  while (ex_next && ac_next) {
-    // printf("expected step: %d (%ld, %d), actual step: %d(%ld, %d)\n",
-    //        ex_i, ex_next->start, ex_next->value, ac_i, ac_next->start, ac_next->value);
-    // fflush(stdout);
-    if (ex_next->start != ac_next->start) {
-      if(strict) {
-        snprintf(message, N, "%s: Step %d times expected: %ld, actual: %ld", comment, ex_i, ex_next->start, ac_next->start);
-        TEST_FAIL_MESSAGE(message);
-      } else if (ex_next->start > ac_next->start) {
-        if(ac_next->value != ex_prev) {
-          snprintf(message, N, "%s: Time %ld (before expected step %d, actual step %d) value expected: %d, actual: %d", comment, ac_next->start, ex_i, ac_i, ex_prev, ac_next->value);
-          TEST_FAIL_MESSAGE(message);
-        } else {
-          ac_prev = ac_next->value;
-          ac_i += 1;
-          ac_next = list_next(ac_it);
-          continue;
-        }
-      } else /* (ex_next->start < ac_next->start) */ {
-        if (ex_next->value != ac_prev) {
-          snprintf(message, N, "%s: Time %ld (expected step %d, before actual step %d) value expected: %d, actual: %d", comment, ex_next->start, ex_i, ac_i, ex_next->value, ac_prev);
-          TEST_FAIL_MESSAGE(message);
-        } else {
-          ex_prev = ex_next->value;
-          ex_i += 1;
-          ex_next = list_next(ex_it);
-          continue;
-        }
-      }
-    } else /* (ex_next->start == ac_next->start) */ {
-      if (ex_next->value != ac_next->value) {
-        snprintf(message, N,
-                 "%s: Time %ld (expected step %d, actual step %d) value expected: %d, actual: %d",
-                 comment, ex_next->start, ex_i, ac_i, ex_next->value, ac_next->value);
-        TEST_FAIL_MESSAGE(message);
-      } else {
-        ex_prev = ex_next->value;
-        ex_i += 1;
-        ex_next = list_next(ex_it);
-        ac_prev = ac_next->value;
-        ac_i += 1;
-        ac_next = list_next(ac_it);
-        continue;
-      }
-    }
-  }
-  if(strict && (ac_next || ex_next)) {
-    if (ex_next) {
-      snprintf(message, N, "%s: Step %d missing (time: %ld, value: %d)", comment,
-               ex_i, ex_next->start, ex_next->value);
-    } else {
-      snprintf(message, N, "%s: Step %d (time: %ld, value: %d) is not expected", comment,
-               ex_i, ac_next->start, ac_next->value);
-    }
-    TEST_FAIL_MESSAGE(message);
-  }
-}
 
 /** for backfill_licenses **/
 
@@ -135,6 +70,21 @@ typedef struct lt_entry_struct {
   uint32_t total;
   utracker_int_t ut;
 } lt_entry_t;
+
+typedef struct two_group_entry_struct {
+  char *name;
+  uint32_t total;
+  utracker_int_t ut;
+  utracker_int_t st;
+  double r_star;
+  double r_bar;
+  double r_target;    // target rate per node
+  int r_star_target;  // recalculated target value per cluster
+  uint32_t n_total;
+  double random;  // [0,1] determine how much over the target is allowed at the
+                  // current round
+  // TODO
+} two_group_entry_t;
 
 static int _lt_find_lic_name(void *x, void *key) {
   lt_entry_t *entry = (lt_entry_t *)x;
@@ -149,7 +99,7 @@ static lt_entry_t *_entry_from_lt(lic_tracker_p lt, char *name) {
   if (lt) {
     lt_entry_t *lt_entry;
     if (strcmp(name, "lustre") == 0) {
-      return lt->lustre.entry;
+      return lt->lustre.vp_entry;
     } else {
       return list_find_first(lt->other_licenses, _lt_find_lic_name, name);
     }
@@ -164,6 +114,141 @@ static utracker_int_t _ut_from_lt(lic_tracker_p lt, char *name) {
   } else {
     return NULL;
   }
+}
+
+/************************************************************
+ IMPLEMENTATION-SPECIFIC HELPERS
+************************************************************/
+
+static void _assert_ut_match(utracker_int_t expected, utracker_int_t actual,
+                             bool strict, char *comment) {
+  // TODO(AG): debug
+  const size_t N = 1024;
+  static char message[N + 1];
+  xfree(message);
+  size_t ie = 0;
+  ListIterator ex_it = list_iterator_create(expected);
+  ListIterator ac_it = list_iterator_create(actual);
+  ut_int_item_t *ex_next = list_next(ex_it);
+  ut_int_item_t *ac_next = list_next(ac_it);
+  int ex_prev = ex_next->value;
+  int ac_prev = ac_next->value;
+  if (ac_next->start != ex_next->start) {
+    snprintf(message, N, "%s: Start times expected: %ld, actual: %ld", comment,
+             ex_next->start, ac_next->start);
+    TEST_FAIL_MESSAGE(message);
+  };
+  if (ac_next->value != ex_next->value) {
+    snprintf(message, N, "%s: Start values expected: %d, actual: %d", comment,
+             ex_next->value, ac_next->value);
+    TEST_FAIL_MESSAGE(message);
+  };
+  ex_next = list_next(ex_it);
+  ac_next = list_next(ac_it);
+  int ex_i = 2, ac_i = 2;
+  while (ex_next && ac_next) {
+    // printf("expected step: %d (%ld, %d), actual step: %d(%ld, %d)\n",
+    //        ex_i, ex_next->start, ex_next->value, ac_i, ac_next->start,
+    //        ac_next->value);
+    // fflush(stdout);
+    if (ex_next->start != ac_next->start) {
+      if (strict) {
+        snprintf(message, N, "%s: Step %d times expected: %ld, actual: %ld",
+                 comment, ex_i, ex_next->start, ac_next->start);
+        TEST_FAIL_MESSAGE(message);
+      } else if (ex_next->start > ac_next->start) {
+        if (ac_next->value != ex_prev) {
+          snprintf(message, N,
+                   "%s: Time %ld (before expected step %d, actual step %d) "
+                   "value expected: %d, actual: %d",
+                   comment, ac_next->start, ex_i, ac_i, ex_prev,
+                   ac_next->value);
+          TEST_FAIL_MESSAGE(message);
+        } else {
+          ac_prev = ac_next->value;
+          ac_i += 1;
+          ac_next = list_next(ac_it);
+          continue;
+        }
+      } else /* (ex_next->start < ac_next->start) */ {
+        if (ex_next->value != ac_prev) {
+          snprintf(message, N,
+                   "%s: Time %ld (expected step %d, before actual step %d) "
+                   "value expected: %d, actual: %d",
+                   comment, ex_next->start, ex_i, ac_i, ex_next->value,
+                   ac_prev);
+          TEST_FAIL_MESSAGE(message);
+        } else {
+          ex_prev = ex_next->value;
+          ex_i += 1;
+          ex_next = list_next(ex_it);
+          continue;
+        }
+      }
+    } else /* (ex_next->start == ac_next->start) */ {
+      if (ex_next->value != ac_next->value) {
+        snprintf(message, N,
+                 "%s: Time %ld (expected step %d, actual step %d) value "
+                 "expected: %d, actual: %d",
+                 comment, ex_next->start, ex_i, ac_i, ex_next->value,
+                 ac_next->value);
+        TEST_FAIL_MESSAGE(message);
+      } else {
+        ex_prev = ex_next->value;
+        ex_i += 1;
+        ex_next = list_next(ex_it);
+        ac_prev = ac_next->value;
+        ac_i += 1;
+        ac_next = list_next(ac_it);
+        continue;
+      }
+    }
+  }
+  if (strict && (ac_next || ex_next)) {
+    if (ex_next) {
+      snprintf(message, N, "%s: Step %d missing (time: %ld, value: %d)",
+               comment, ex_i, ex_next->start, ex_next->value);
+    } else {
+      snprintf(message, N, "%s: Step %d (time: %ld, value: %d) is not expected",
+               comment, ex_i, ac_next->start, ac_next->value);
+    }
+    TEST_FAIL_MESSAGE(message);
+  }
+}
+
+static double _get_r_target(lic_tracker_p lt) {
+  two_group_entry_t *entry = lt->lustre.vp_entry;
+  return entry->r_target;
+}
+
+static double _get_r_star(lic_tracker_p lt) {
+  two_group_entry_t *entry = lt->lustre.vp_entry;
+  return entry->r_star;
+}
+
+static double _get_r_bar(lic_tracker_p lt) {
+  two_group_entry_t *entry = lt->lustre.vp_entry;
+  return entry->r_bar;
+}
+
+static double _get_star_random(lic_tracker_p lt) {
+  two_group_entry_t *entry = lt->lustre.vp_entry;
+  return entry->random;
+}
+
+static int _get_r_star_target(lic_tracker_p lt) {
+  two_group_entry_t *entry = lt->lustre.vp_entry;
+  return entry->r_star_target;
+}
+
+static int _get_n_total(lic_tracker_p lt) {
+  two_group_entry_t *entry = lt->lustre.vp_entry;
+  return entry->n_total;
+}
+
+utracker_int_t _get_star_tracker(lic_tracker_p lt) {
+  two_group_entry_t *entry = lt->lustre.vp_entry;
+  return entry->st;
 }
 
 /************************************************************
@@ -249,6 +334,7 @@ static job_record_t *_create_job(job_precursor_t *prec, time_t now) {
   job->time_limit = prec->time_limit;
   job->start_time = (time_t) ((long) now + (long) prec->start_time);
   job->end_time = job->time_limit * 60 + job->start_time;
+  job->node_cnt = prec->nodes;
   job->details->min_nodes = prec->nodes;
   job->details->max_nodes = prec->nodes;
   job->job_state = prec->job_state;
@@ -271,6 +357,17 @@ static void _add_jobs(int count, job_precursor_t precs[], time_t when) {
   }
 }
 
+static void _add_jobs_several_times(int count, job_precursor_t precs[], int how_many, time_t when, int time_increment, int start_job_id) {
+  int job_id = start_job_id;
+  for(int n=0; n<how_many; ++n, when+=time_increment) {
+    for(int i=0; i<count; ++i, ++job_id) {
+      job_record_t *job = _create_job(&precs[i], when);
+      job->job_id = job_id;
+      _add_job(job);
+    }
+  }
+}
+
 static void _reset_jobs() {
 
 }
@@ -286,6 +383,14 @@ job_precursor_t jobs0[3] = {{1, 100, 1000, 10, JOB_PENDING, 100},
 job_precursor_t jobs1[3] = {{4, 100, 6000, 10, JOB_RUNNING, -1},
                             {5, 100, 6200, 10, JOB_RUNNING, -1},
                             {6, 100, 6300, 10, JOB_RUNNING, -1}};
+
+job_precursor_t jobs2[3] = {{4, 100, 6000, 10, JOB_RUNNING, 100},
+                            {5, 100, 6200, 10, JOB_RUNNING, 100},
+                            {6, 100, 6300, 10, JOB_RUNNING, 300}};
+
+job_precursor_t jobs_cycle1[3] = {{200, 100, 6000, 10, JOB_PENDING, 100},
+                                  {201, 100, 6200, 10, JOB_PENDING, 100},
+                                  {202, 100, 6300, 10, JOB_PENDING, 300}};
 
 int _jobs1a_get_job_utilization_from_remote(job_record_t *job_ptr,
                                             remote_estimates_t *results) {
@@ -323,10 +428,6 @@ int _jobs1b_get_job_utilization_from_remote(job_record_t *job_ptr,
   }
 }
 
-job_precursor_t jobs2[3] = {{4, 100, 6000, 10, JOB_RUNNING, 100},
-                            {5, 100, 6200, 10, JOB_RUNNING, 100},
-                            {6, 100, 6300, 10, JOB_RUNNING, 300}};
-
 /**
  * Creats a list with only "lustre" license
 */
@@ -339,9 +440,23 @@ static void _create_licenses1(void) {
   list_push(license_list, license_entry);
 }
 
+
 /************************************************************
  TESTS
 ************************************************************/
+
+static void handler(int sig) {
+  void *array[10];
+  size_t size;
+
+  // get void*'s for all entries on the stack
+  size = backtrace(array, 10);
+
+  // print out all the frames to stderr
+  fprintf(stderr, "Error: signal %d:\n", sig);
+  backtrace_symbols_fd(array, size, STDERR_FILENO);
+  exit(1);
+}
 
 void setUp(void) {
   // nothing
@@ -352,14 +467,18 @@ void setUp(void) {
   TEST_ASSERT_NULL_MESSAGE(job_list,
                            "job_list must be NULL before setup");
   _reset_jobs();
-  _reset_mocks();
+  _clear_server_strings();
+  old_time_func = set_unit_test_override_time(my_time);
 }
 
 void tearDown(void) {
+  configure_backfill_licenses(BACKFILL_LICENSES_AWARE);
+  configure_total_node_count(-1);
   _destroy_licenses();
   _destroy_jobs();
   TEST_ASSERT_NULL_MESSAGE(license_list,
                            "license_list must be NULL after each test");
+  set_unit_test_override_time(old_time_func);
 }
 
 void test_step_func() {
@@ -838,10 +957,242 @@ void test_backfill_licenses_overlap() {
   destroy_lic_tracker(lt);
 }
 
+void set_wa() {
+  configure_backfill_licenses(BACKFILL_LICENSES_TWO_GROUP);
+  configure_total_node_count(100);
+}
+
+void test_wa_step_func() {
+  set_wa();
+  test_step_func();
+}
+void test_wa_assert_ut_match() {
+  set_wa();
+  test_assert_ut_match();
+}
+void test_wa_init_lic_tracker_no_licenses() {
+  set_wa();
+  test_init_lic_tracker_no_licenses();
+}
+void test_wa_init_lic_tracker_no_job_list() {
+  set_wa();
+  test_init_lic_tracker_no_job_list();
+}
+void test_wa_init_lic_tracker_empty_job_list() {
+  set_wa();
+  test_init_lic_tracker_empty_job_list();
+}
+void test_wa_init_lic_tracker_no_running_jobs() {
+  set_wa();
+  test_init_lic_tracker_no_running_jobs();
+}
+void test_wa_init_lic_tracker_running_jobs1a() {
+  set_wa();
+  test_init_lic_tracker_running_jobs1a();
+}
+void test_wa_init_lic_tracker_running_jobs1b() {
+  set_wa();
+  test_init_lic_tracker_running_jobs1b();
+}
+void test_wa_init_lic_tracker_running_jobs2() {
+  set_wa();
+  test_init_lic_tracker_running_jobs2();
+}
+void test_wa_backfill_licenses_test_job_1() {
+  set_wa();
+  test_backfill_licenses_test_job_1();
+}
+void test_wa_backfill_licenses_test_job_and_alloc_job_estimates() {
+  set_wa();
+  test_backfill_licenses_test_job_and_alloc_job_estimates();
+}
+void test_wa_backfill_licenses_test_job_and_alloc_job_presets() {
+  set_wa();
+  test_backfill_licenses_test_job_and_alloc_job_presets();
+}
+void test_wa_backfill_licenses_overlap() {
+  set_wa();
+  test_backfill_licenses_overlap();
+}
+
+void test_wa_backfill_licenses_star1() {
+  set_wa();
+  _create_licenses1();
+  _init_job_list();
+  _add_jobs(COUNT_OF(jobs2), jobs2, 0);
+  /* no pending jobs */
+  lic_tracker_p lt = init_lic_tracker(60);
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 17.0769, _get_r_target(lt), "R_target calculated properly when no pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 0, _get_r_star(lt), "R_star calculated properly when no pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 0, _get_r_bar(lt), "R_bar calculated properly when no pending jobs");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(1000, _get_r_star_target(lt), "R_star_target calculated properly when no pending jobs");
+  {
+    utracker_int_t st = _get_star_tracker(lt);
+    STEP_FUNC(sf, {
+                      {-1, 500},
+                      {12060, 400},
+                      {12240, 300},
+                      {12360, 0},
+                  });
+    utracker_int_t expected = _ut_from_step_func(&sf);
+    _assert_ut_match(expected, st, true, "strict");
+    ut_int_destroy(expected);
+    /* now test backfill licenses */
+    /* first job */
+    job_precursor_t prec = {101, 100, 3000, 10, JOB_PENDING, -1};
+    job_record_t *job_ptr = _create_job(&prec, 0);
+    remote_estimates_t estimates = {0, 300};
+    time_t when = 10000;
+    int rc = backfill_licenses_test_job(lt, job_ptr, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10000, when, "first job can start right away");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    backfill_licenses_alloc_job(lt, job_ptr, &estimates, when, when + 10*60);
+    /* second job */
+    job_precursor_t prec2 = {102, 100, 3000, 10, JOB_PENDING, -1};
+    job_record_t *job_ptr2 = _create_job(&prec2, 0);
+    // estimates = {0, 300};
+    // when = 10000;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10620, when, "second \"lustre 300\" job can start after job 101");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    estimates.lustre = 600;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(12060, when, "second \"lustre 600\" job can start after job 4");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    _job_delete(job_ptr);
+    _job_delete(job_ptr2);
+  }
+  destroy_lic_tracker(lt);
+  /* no pending jobs - bigger lustre limit */
+  licenses_t *license = list_peek(license_list);
+  license->total = 10000;
+  lt = init_lic_tracker(60);
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 17.0769, _get_r_target(lt), "R_target calculated properly when no pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 0, _get_r_star(lt), "R_star calculated properly when no pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 0, _get_r_bar(lt), "R_bar calculated properly when no pending jobs");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(10000, _get_r_star_target(lt), "R_star_target calculated properly when no pending jobs");
+  {
+    utracker_int_t st = _get_star_tracker(lt);
+    STEP_FUNC(sf, {
+                      {-1, 500},
+                      {12060, 400},
+                      {12240, 300},
+                      {12360, 0},
+                  });
+    utracker_int_t expected = _ut_from_step_func(&sf);
+    _assert_ut_match(expected, st, true, "strict");
+    ut_int_destroy(expected);
+    /* now test backfill licenses */
+    /* first job */
+    job_precursor_t prec = {101, 100, 3000, 10, JOB_PENDING, -1};
+    job_record_t *job_ptr = _create_job(&prec, 0);
+    remote_estimates_t estimates = {0, 300};
+    time_t when = 10000;
+    int rc = backfill_licenses_test_job(lt, job_ptr, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10000, when, "first job can start right away");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    backfill_licenses_alloc_job(lt, job_ptr, &estimates, when, when + 10*60);
+    /* second job */
+    job_precursor_t prec2 = {102, 100, 3000, 10, JOB_PENDING, -1};
+    job_record_t *job_ptr2 = _create_job(&prec2, 0);
+    // estimates = {0, 300};
+    // when = 10000;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10000, when, "with bigger limt, second \"lustre 300\" job can start right away");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    estimates.lustre = 600;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10000, when, "with bigger limt, second \"lustre 600\" job can start right away");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    _job_delete(job_ptr);
+    _job_delete(job_ptr2);
+  }
+  destroy_lic_tracker(lt);
+  /* 30 pending jobs */
+  _add_jobs_several_times(COUNT_OF(jobs_cycle1), jobs_cycle1, 10, 0, 400, 1000);
+  lt = init_lic_tracker(60);
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 16.6809, _get_r_target(lt), "R_target calculated properly with 30 pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 10, _get_r_star(lt), "R_star calculated properly with 30 pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 10, _get_r_bar(lt), "R_bar calculated properly with 30 pending jobs");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(668, _get_r_star_target(lt), "R_star_target calculated properly with 30 pending jobs");
+  destroy_lic_tracker(lt);
+  /* 300 penidng jobs*/
+  _add_jobs_several_times(COUNT_OF(jobs_cycle1), jobs_cycle1, 90, 4000, 400, 1000);
+  lt = init_lic_tracker(60);
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 16.6681, _get_r_target(lt), "R_target calculated properly with 300 pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 10, _get_r_star(lt), "R_star calculated properly with 300 pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 10, _get_r_bar(lt), "R_bar calculated properly with 300 pending jobs");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(667, _get_r_star_target(lt), "R_star_target calculated properly with 300 pending jobs");
+  {
+    utracker_int_t st = _get_star_tracker(lt);
+    STEP_FUNC(sf, {
+                      {-1, 200},
+                      // {12060, 200},
+                      // {12240, 200},
+                      {12360, 0},
+                  });
+    utracker_int_t expected = _ut_from_step_func(&sf);
+    _assert_ut_match(expected, st, true, "strict");
+    ut_int_destroy(expected);
+    /* now test backfill licenses */
+    /* first job */
+    job_precursor_t prec = {101, 100, 3000, 10, JOB_PENDING, -1};
+    job_record_t *job_ptr = _create_job(&prec, 0);
+    remote_estimates_t estimates = {0, 300};
+    time_t when = 10000;
+    int rc = backfill_licenses_test_job(lt, job_ptr, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10000, when, "with penidng jobs, first job can start right away");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    backfill_licenses_alloc_job(lt, job_ptr, &estimates, when, when + 10 * 60);
+    STEP_FUNC(sf1, {
+                      {-1, 200},
+                      {9960, 400},
+                      {10620, 200},
+                      // {12240, 200},
+                      {12360, 0},
+                  });
+    expected = _ut_from_step_func(&sf1);
+    _assert_ut_match(expected, st, true, "strict");
+    ut_int_destroy(expected);
+    /* second job */
+    job_precursor_t prec2 = {102, 100, 3000, 10, JOB_PENDING, -1};
+    job_record_t *job_ptr2 = _create_job(&prec2, 0);
+    // estimates = {0, 300};
+    // when = 10000;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10000, when, "with penidng jobs, second \"lustre 300\" job can start right away");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    estimates.lustre = 600;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10000, when, "with penidng jobs, second \"lustre 600\" job can start right away");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    estimates.lustre = 700;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10620, when, "with penidng jobs, second \"lustre 700\" job can start after job 101");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    estimates.lustre = 3000;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10620, when, "with penidng jobs, second \"lustre 3000\" job can start after job 101");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    estimates.lustre = 10000;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(12360, when, "with penidng jobs, second \"lustre 10000\" job can start after all jobs");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    _job_delete(job_ptr);
+    _job_delete(job_ptr2);
+  }
+  destroy_lic_tracker(lt);
+}
+
 int main(int argc, char * argv[]) {
+  signal(SIGSEGV, handler);  // install our handler
   log_options_t log_options = {LOG_LEVEL_DEBUG5, LOG_LEVEL_QUIET,
                                LOG_LEVEL_QUIET, 1, 0};
   printf("%d\n", log_init("LOG", log_options, SYSLOG_FACILITY_DAEMON, NULL));
+  // init mocks;
+  if (!avail_node_bitmap) avail_node_bitmap = bit_alloc(8);
+  if (!idle_node_bitmap) idle_node_bitmap = bit_alloc(8);
+  if (!rs_node_bitmap) rs_node_bitmap = bit_alloc(8);
   UNITY_BEGIN();
   RUN_TEST(test_step_func);
   RUN_TEST(test_assert_ut_match);
@@ -856,5 +1207,19 @@ int main(int argc, char * argv[]) {
   RUN_TEST(test_backfill_licenses_test_job_and_alloc_job_estimates);
   RUN_TEST(test_backfill_licenses_test_job_and_alloc_job_presets);
   RUN_TEST(test_backfill_licenses_overlap);
+  RUN_TEST(test_wa_step_func);
+  RUN_TEST(test_wa_assert_ut_match);
+  RUN_TEST(test_wa_init_lic_tracker_no_licenses);
+  RUN_TEST(test_wa_init_lic_tracker_no_job_list);
+  RUN_TEST(test_wa_init_lic_tracker_empty_job_list);
+  RUN_TEST(test_wa_init_lic_tracker_no_running_jobs);
+  RUN_TEST(test_wa_init_lic_tracker_running_jobs1a);
+  RUN_TEST(test_wa_init_lic_tracker_running_jobs1b);
+  RUN_TEST(test_wa_init_lic_tracker_running_jobs2);
+  RUN_TEST(test_wa_backfill_licenses_test_job_1);
+  RUN_TEST(test_wa_backfill_licenses_test_job_and_alloc_job_estimates);
+  RUN_TEST(test_wa_backfill_licenses_test_job_and_alloc_job_presets);
+  RUN_TEST(test_wa_backfill_licenses_overlap);
+  RUN_TEST(test_wa_backfill_licenses_star1);
   return UNITY_END();
 }

@@ -14,6 +14,8 @@ job_submit_lustre_util_la_SOURCES = job_submit_lustre_util.c \
 																		cJSON.c\
 																		client.h\
 																		client.c\
+																		lustre_util_configure.h\
+																		lustre_util_configure.c\
 																		remote_metrics.h \
 																		remote_metrics.c
 job_submit_lustre_util_la_LDFLAGS = $(PLUGIN_FLAGS)

@@ -18,7 +18,7 @@ endif
 
 PATHU = ../../../Unity-master/src/
 ROOT = ../../../../
-PATHS = $(ROOT)src/plugins/sched/backfill/
+PATHS = $(ROOT)src/plugins/job_submit/lustre_util/
 PATHC = $(ROOT)src/common/
 PATHCO = build/comobjs/
 PATHCtrld = $(ROOT)src/slurmctld/
@@ -68,33 +68,24 @@ test: $(BUILD_PATHS) $(RESULTS)
 $(PATHR)%.txt: $(PATHB)%.$(TARGET_EXTENSION)
 	-./$< > $@ 2>&1
 
-$(PATHB)Test_main.$(TARGET_EXTENSION): $(PATHO)unity.o  $(PATHO)Test_main.o
+$(PATHR)Test_lustre_util_configure.txt: $(wildcard test_config/*)
+
+$(PATHB)Test_lustre_util_configure.$(TARGET_EXTENSION): $(PATHO)unity.o  $(PATHO)Test_lustre_util_configure.o $(PATHO)lustre_util_configure.o $(PATHO)cJSON.o $(COMMON_O)
 	$(LINK) -o $@ $^
 
-$(PATHB)Test_remote_estimates.$(TARGET_EXTENSION): $(PATHO)override.oo $(PATHO)unity.o  $(PATHO)Test_remote_estimates.o $(PATHO)remote_estimates.o $(PATHO)cJSON.o $(COMMON_O)
-	$(LINK) -o $@ $^
 
-$(PATHR)Test_backfill_configure.txt: $(wildcard test_config/*)
-
-$(PATHB)Test_backfill_configure.$(TARGET_EXTENSION): $(PATHO)unity.o  $(PATHO)Test_backfill_configure.o $(PATHO)backfill_configure.o $(PATHO)cJSON.o $(COMMON_O)
-	$(LINK) -o $@ $^
-
-$(PATHB)Test_backfill_licenses.$(TARGET_EXTENSION): $(PATHO)override.oo $(PATHO)unity.o  $(PATHO)Test_backfill_licenses.o $(PATHO)backfill_licenses.o $(PATHO)usage_tracker.o $(COMMON_O) $(Ctrld_0)
-	$(LINK) -o $@ $^
-
-# $(PATHB)Test_%.$(TARGET_EXTENSION):: $(PATHO)Test_%.o $(PATHO)%.o $(PATHO)unity.o #$(PATHCO)Test%.d
-# 	$(LINK) -o $@ $^
-
-
-$(PATHO)override.oo:: $(PATHT)override.c $(PATHT)override_internal.h
-	$(COMPILE) $(CFLAGS) $< -o $@
+# $(PATHO)override.oo:: $(PATHT)override.c $(PATHT)override_internal.h
+# 	$(COMPILE) $(CFLAGS) $< -o $@
 
 .SECONDEXPANSION:
 $(PATHO)Test_%.o:: $(PATHT)Test_%.c $$(wildcard $(PATHS)%.h)
 	$(COMPILE) $(CFLAGS) $< -o $@
 
-$(PATHO)%.o:: $(PATHS)%.c $(PATHS)%.h $(PATHT)override.h
-	$(COMPILE)  -include override.h $(CFLAGS) $< -o $@
+# $(PATHO)%.o:: $(PATHS)%.c $(PATHS)%.h $(PATHT)override.h
+# 	$(COMPILE)  -include override.h $(CFLAGS) $< -o $@
+
+$(PATHO)%.o:: $(PATHS)%.c $(PATHS)%.h
+	$(COMPILE)  $(CFLAGS) $< -o $@
 
 $(PATHO)%.o:: $(PATHU)%.c $(PATHU)%.h
 	$(COMPILE) $(CFLAGS) $< -o $@
