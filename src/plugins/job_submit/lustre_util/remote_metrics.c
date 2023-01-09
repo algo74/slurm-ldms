@@ -92,7 +92,7 @@ extern void *remote_metrics_agent(void *args)
 
     if (sockfd <= 0) {
       const char *server_name, *port;
-      update_and_get_server_address(server_name, port);
+      update_and_get_server_address(&server_name, &port);
       if (!server_name || !port) {
         debug3("%s: inactive (host: %s, port: %s)", __func__, server_name, port);
         if (server_name) xfree(server_name);

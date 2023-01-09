@@ -215,53 +215,53 @@ RETRY:
   return resp;
 }
 
-/**
- * Given a license string, return if a license with given name is there
- */
-static bool _license_exist(char *licenses, const char *name)
-{
-  char *token, *last;
+// /**
+//  * Given a license string, return if a license with given name is there
+//  */
+// static bool _license_exist(char *licenses, const char *name)
+// {
+//   char *token, *last;
 
-  if ((licenses == NULL) || (licenses[0] == '\0')) {
-    return false;
-  }
+//   if ((licenses == NULL) || (licenses[0] == '\0')) {
+//     return false;
+//   }
 
-  token = strtok_r(licenses, ",;", &last);
-  while (token) {
-    if (xstrncmp(token, name, strlen(name)) == 0) {
-      return true;
-    }
+//   token = strtok_r(licenses, ",;", &last);
+//   while (token) {
+//     if (xstrncmp(token, name, strlen(name)) == 0) {
+//       return true;
+//     }
 
-    token = strtok_r(NULL, ",;", &last);
-  }
-  return false;
-}
+//     token = strtok_r(NULL, ",;", &last);
+//   }
+//   return false;
+// }
 
-static bool _add_license_to_job_desc(job_desc_msg_t *job_desc,
-                                     const char *name,
-                                     uint32_t num)
-{
-  char *new_licenses, *licenses = job_desc->licenses;
+// static bool _add_license_to_job_desc(job_desc_msg_t *job_desc,
+//                                      const char *name,
+//                                      uint32_t num)
+// {
+//   char *new_licenses, *licenses = job_desc->licenses;
 
-  debug3("%s: modifying licenses: %s", __func__, licenses);
+//   debug3("%s: modifying licenses: %s", __func__, licenses);
 
-  if ((licenses == NULL) || (licenses[0] == '\0')) {
-    // generate new string
-    new_licenses = xstrdup_printf("%s:%u;", name, num);
-  } else {
-    int len = strlen(licenses);
-    if (licenses[len - 1] != ';') {
-      return false;
-    }
+//   if ((licenses == NULL) || (licenses[0] == '\0')) {
+//     // generate new string
+//     new_licenses = xstrdup_printf("%s:%u;", name, num);
+//   } else {
+//     int len = strlen(licenses);
+//     if (licenses[len - 1] != ';') {
+//       return false;
+//     }
 
-    licenses[len - 1] = '\0';
-    new_licenses = xstrdup_printf("%s,%s:%u;", licenses, name, num);
-  }
-  job_desc->licenses = new_licenses;
-  xfree(licenses);
-  debug3("%s: new licenses: %s", __func__, new_licenses);
-  return true;
-}
+//     licenses[len - 1] = '\0';
+//     new_licenses = xstrdup_printf("%s,%s:%u;", licenses, name, num);
+//   }
+//   job_desc->licenses = new_licenses;
+//   xfree(licenses);
+//   debug3("%s: new licenses: %s", __func__, new_licenses);
+//   return true;
+// }
 
 static char *_get_variety_id(job_desc_msg_t *job_desc, uint32_t uid)
 {
@@ -351,27 +351,27 @@ static char *_get_variety_id(job_desc_msg_t *job_desc, uint32_t uid)
   return variety_id;
 }
 
-static cJSON *_get_job_usage(char *variety_id)
-{
-  cJSON *request = cJSON_CreateObject();
-  cJSON_AddStringToObject(request, "type", "job_utilization");
-  cJSON_AddStringToObject(request, "variety_id", variety_id);
+// static cJSON *_get_job_usage(char *variety_id)
+// {
+//   cJSON *request = cJSON_CreateObject();
+//   cJSON_AddStringToObject(request, "type", "job_utilization");
+//   cJSON_AddStringToObject(request, "variety_id", variety_id);
 
-  cJSON *resp = _send_receive(request);
+//   cJSON *resp = _send_receive(request);
 
-  if (resp == NULL) {
-    error("%s: could not get job utilization from server", __func__);
-    return NULL;
-  }
+//   if (resp == NULL) {
+//     error("%s: could not get job utilization from server", __func__);
+//     return NULL;
+//   }
 
-  cJSON *util = cJSON_GetObjectItem(resp, "response");
-  if (util == NULL) {
-    error("%s: bad response from server: no response field", __func__);
-    return NULL;
-  }
+//   cJSON *util = cJSON_GetObjectItem(resp, "response");
+//   if (util == NULL) {
+//     error("%s: bad response from server: no response field", __func__);
+//     return NULL;
+//   }
 
-  return util;
-}
+//   return util;
+// }
 
 static void _set_variety_id(job_desc_msg_t *job_desc, char *variety_id)
 {
