@@ -91,7 +91,7 @@ extern void *remote_metrics_agent(void *args)
     // if not connected, attempt to connect
 
     if (sockfd <= 0) {
-      char *server_name, *port;
+      const char *server_name, *port;
       update_and_get_server_address(server_name, port);
       if (!server_name || !port) {
         debug3("%s: inactive (host: %s, port: %s)", __func__, server_name, port);
