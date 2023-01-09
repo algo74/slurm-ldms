@@ -1,3 +1,4 @@
+#include <execinfo.h>
 #include <signal.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -37,7 +38,7 @@ backfill_licenses_config_t config_mode = MOCK_INT;
 
 int node_count = MOCK_INT;
 
-static void _change_string(char **where, char *what) {
+static void _change_string(char **where, const char *what) {
   if (*where) xfree(*where);
   *where = what ? xstrdup(what) : NULL;
 }
@@ -53,12 +54,16 @@ void config_vinsnl_server(char *server, char *port)
 backfill_licenses_config_t configure_backfill_licenses(
     backfill_licenses_config_t config) {
   ++_count_configure_backfill_licenses;
+  backfill_licenses_config_t old = config_mode;
   config_mode = config;
+  return old;
   }
 
 int configure_total_node_count(int config) {
   ++_count_configure_total_node_count;
+  int old = node_count;
   node_count = config;
+  return old;
 }
 
 static void _clear_server_strings()
