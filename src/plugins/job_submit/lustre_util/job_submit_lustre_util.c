@@ -184,7 +184,7 @@ RETRY:
 
   // make sure we connected
   if (sockfd <= 0) {
-    char *variety_id_server, *variety_id_port;
+    const char *variety_id_server, *variety_id_port;
     update_and_get_server_address(&variety_id_server, &variety_id_port);
     if (!variety_id_port || !variety_id_server) {
       debug3("%s: variety id server disabled (host: %s, port: %s)", __func__, variety_id_server, variety_id_port);

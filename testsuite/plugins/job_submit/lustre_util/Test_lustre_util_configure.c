@@ -1,3 +1,4 @@
+#include <execinfo.h>
 #include <signal.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -30,8 +31,8 @@ static const int MOCK_INT = 9999;
 // int _count_configure_backfill_licenses = 0;
 // int _count_configure_total_node_count = 0;
 
-char *server_name = NULL;
-char *server_port = NULL;
+const char *server_name = NULL;
+const char *server_port = NULL;
 
 // backfill_licenses_config_t config_mode = MOCK_INT;
 
@@ -42,7 +43,7 @@ char *server_port = NULL;
 //   *where = what ? xstrdup(what) : NULL;
 // }
 
-static void _clear_string(char **where) {
+static void _clear_string(const char **where) {
   if (*where) xfree(*where);
   *where = NULL;
 }
