@@ -158,6 +158,9 @@ uint32_t _get_job_node_count(job_record_t *job_ptr) {
   uint32_t qos_flags = 0;  // TODO: figure out what it does and set it properly
   int error_code = get_node_cnts(job_ptr, qos_flags, part_ptr, &min_nodes,
                                  &req_nodes, &max_nodes);
+  if (error_code != SLURM_SUCCESS) {
+    error("%s: %pJ: get_node_cnts error: %d", __func__, job_ptr, error_code);
+  }
   debug5("%s: %pJ: max/req/min nodes: %d/%d/%d", __func__, job_ptr, max_nodes,
          req_nodes, min_nodes);
   return req_nodes;
@@ -244,7 +247,6 @@ static void _lt_process_running_job(lic_tracker_p lt, job_record_t *job_ptr,
   if (job_ptr->license_list) {
     ListIterator j_iter = list_iterator_create(job_ptr->license_list);
     licenses_t *license_entry;
-    lt_entry_t *lt_entry;
     while ((license_entry = list_next(j_iter))) {
       if (xstrcmp(license_entry->name, LUSTRE) == 0) {
         lustre_value = license_entry->total;

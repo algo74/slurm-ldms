@@ -9,8 +9,8 @@
 #include "src/common/xstring.h"
 #include "src/slurmctld/licenses.h"
 
-static const char *REMOTE_SERVER_ENV_NAME = "VINSNL_SERVER";
-static const char *REMOTE_SERVER_STRING = "127.0.0.1:9999";
+// static const char *REMOTE_SERVER_ENV_NAME = "VINSNL_SERVER";
+// static const char *REMOTE_SERVER_STRING = "127.0.0.1:9999";
 static int sockfd = -1;
 static char *variety_id_server = NULL;
 static char *variety_id_port = NULL;
