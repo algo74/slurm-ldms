@@ -77,99 +77,100 @@ static int _license_find_rec(void *x, void *key)
   return 1;
 }
 
+static void _update_remote_metrics(int *myyss) 
+{
+  int result = 0;
+
+  // if not connected, attempt to connect
+
+  if (*myyss <= 0) {
+    const char *server_name, *port;
+    update_and_get_server_address(&server_name, &port);
+    if (!server_name || !port) {
+      debug3("%s: inactive (host: %s, port: %s)", __func__, server_name, port);
+      if (server_name) xfree(server_name);
+      if (port) xfree(port);
+      return;
+    }
+    debug3("%s: connecting to host: %s, port: %s", __func__, server_name, port);
+    *myyss = connect_to_simple_server(server_name, port);
+    xfree(server_name);
+    xfree(port);
+  }
+
+  // if connected, get new metrics
+
+  bool updated = false;
+
+  if (*myyss <= 0) {
+    error("error connecting to remote_metric server");
+  } else {
+    cJSON *req = cJSON_CreateObject();
+    cJSON_AddStringToObject(req, "type", "usage");
+    cJSON *metric_list = cJSON_CreateArray();
+    cJSON_AddItemToArray(metric_list, cJSON_CreateString("lustre"));
+    cJSON_AddItemToObject(req, "request", metric_list);
+    cJSON *resp = send_receive(*myyss, req);
+    cJSON_Delete(req);
+    if (!resp) {
+      debug2("could not get response from remote_metric server");
+      close(*myyss);
+      *myyss = -1;
+    } else {
+      cJSON *payload = cJSON_GetObjectItem(resp, "response");
+      if (!payload) {
+        error("remote_metric server response has no \"response\"");
+      } else {
+        cJSON *lustre = cJSON_GetObjectItem(payload, "lustre");
+        if (!lustre) {
+          error("remote_metric server response has no item \"lustre\"");
+        } else if (!cJSON_IsString(lustre)) {
+          error("remote_metric server response item \"luster\" isn't a string");
+        } else {
+          result = atoi(lustre->valuestring);
+          if (result >= 0) {
+            updated = true;
+          }
+        }
+      }
+    }
+  }
+
+  // if got new metrics, update metrics
+  if (updated) {
+    licenses_t *match;
+
+    char *license_name = "lustre";
+
+    slurm_mutex_lock(&license_mutex);
+
+    match = list_find_first(license_list, _license_find_rec,
+                            license_name);
+    if (!match) {
+      debug("could not find license %s for remote_metric update",
+            license_name);
+    } else {
+      if (result > match->total) {
+        /* clump value to total */
+        result = match->total;
+      }
+      match->r_used = result;
+      debug3("remotely updated license %s for %d",
+             license_name, result);
+    }
+    slurm_mutex_unlock(&license_mutex);
+  }
+}
 
 extern void *remote_metrics_agent(void *args)
 {
-  int i = 0;
 
   debug3("starting remote_metrics_agent");
 
   int sockfd = 0;
 
   while(!stop_remote_metrics) {
-
-    // if not connected, attempt to connect
-
-    if (sockfd <= 0) {
-      const char *server_name, *port;
-      update_and_get_server_address(&server_name, &port);
-      if (!server_name || !port) {
-        debug3("%s: inactive (host: %s, port: %s)", __func__, server_name, port);
-        if (server_name) xfree(server_name);
-        if (port) xfree(port);
-        continue;
-      }
-      debug3("%s: connecting to host: %s, port: %s", __func__, server_name, port);
-      sockfd = connect_to_simple_server(server_name, port);
-      xfree(server_name);
-      xfree(port);
-    }
-
-    // if connected, get new metrics
-
-    bool updated = false;
-
-    if (sockfd <= 0) {
-      error("error connecting to remote_metric server");
-    } else {
-      cJSON *req =  cJSON_CreateObject();
-      cJSON_AddStringToObject(req, "type", "usage");
-      cJSON *metric_list = cJSON_CreateArray();
-      cJSON_AddItemToArray(metric_list, cJSON_CreateString("lustre"));
-      cJSON_AddItemToObject(req, "request", metric_list);
-      cJSON *resp = send_receive(sockfd, req);
-      cJSON_Delete(req);
-      if (!resp) {
-        debug2("could not get response from remote_metric server");
-        close(sockfd);
-        sockfd = -1;
-      } else {
-        cJSON *payload = cJSON_GetObjectItem(resp, "response");
-        if (!payload) {
-          error("remote_metric server response has no \"response\"");
-        } else {
-          cJSON *lustre = cJSON_GetObjectItem(payload, "lustre");
-          if (!lustre) {
-            error("remote_metric server response has no item \"lustre\"");
-          } else if (!cJSON_IsString(lustre)) {
-            error("remote_metric server response item \"luster\" isn't a string");
-          } else {
-            i = atoi(lustre->valuestring);
-            if (i >= 0) {
-              updated = true;
-            }
-          }
-        }
-      }
-    }
-
-    // if got new metrics, update metrics
-    if (updated) {
-      licenses_t *match;
-
-      char* license_name = "lustre";
-
-      slurm_mutex_lock(&license_mutex);
-
-      match = list_find_first(license_list, _license_find_rec,
-        license_name);
-      if (!match) {
-        debug("could not find license %s for remote_metric update",
-              license_name);
-      } else {
-        if (i > match->total) {
-          /* clump value to total */
-          i = match->total;
-        }
-        match->r_used = i;
-        debug3("remotely updated license %s for %d",
-                    license_name, i);
-
-      }
-      slurm_mutex_unlock(&license_mutex);
-    }
-
-    // sleep
+    _update_remote_metrics(&sockfd);
     _my_sleep(5 * USEC_IN_SEC);
   }
 
