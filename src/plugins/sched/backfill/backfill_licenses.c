@@ -382,13 +382,14 @@ void _setup_two_groups(two_group_entry_t *entry, lt_entry_t *lt_entry, time_t ca
   } else {
     qsort(sortable_star_details, n_pending_jobs, sizeof(star_job_details_t *), _compare_star_job_details);
     debug5("%s: sorted star details", __func__);
-    int i = 0;
-    double area = 0.0;
     double target_area = 0.5 * pending_area;
     debug5("%s: target area: %f", __func__, target_area);
-    while (i<n_pending_jobs && area < target_area) {
-      area += sortable_star_details[i]->area;
+    int i = 0;
+    double area = sortable_star_details[i]->area;
+    debug5("%s: i: %d, area: %f", __func__, i, area);
+    while (i < (n_pending_jobs-1) && area < target_area) {
       ++i;
+      area += sortable_star_details[i]->area;
       debug5("%s: i: %d, area: %f", __func__, i, area);
     }
     entry->r_star = sortable_star_details[i]->lustre_per_node;

@@ -1015,6 +1015,62 @@ void test_wa_backfill_licenses_overlap() {
   test_backfill_licenses_overlap();
 }
 
+void test_wa_init_lic_tracker_one_pending_job()
+{
+  set_wa();
+  // TODO: check if needed
+  // mock_job_utilization_from_remote = _jobs1b_get_job_utilization_from_remote;
+  _create_licenses1();
+  _init_job_list();
+  // time_t now = time(NULL);
+  time_t now = 0;
+  job_precursor_t prec = {101, 100, 3000, 10, JOB_PENDING, -1};
+  job_record_t *job_ptr = _create_job(&prec, 0);
+  _add_job(job_ptr);
+  lic_tracker_p lt = init_lic_tracker(60);
+  utracker_int_t ut = _ut_from_lt(lt, "lustre");
+  TEST_ASSERT_NOT_NULL_MESSAGE(ut, "lustre tracker must be created");
+  STEP_FUNC(sf, {
+                    {-1, 500},
+                });
+  utracker_int_t expected = _ut_from_step_func(&sf);
+  _assert_ut_match(expected, ut, true, "strict");
+  ut_int_destroy(expected);
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 0, _get_r_target(lt), "R_target calculated properly when one pending job");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 0, _get_r_star(lt), "R_star calculated properly when one pending job");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 0, _get_r_bar(lt), "R_bar calculated properly when one pending job");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(0, _get_r_star_target(lt), "R_star_target calculated properly when one pending job");
+  destroy_lic_tracker(lt);
+}
+
+void test_wa_init_lic_tracker_one_pending_job_with_lustre()
+{
+  set_wa();
+  // Predictions are used to set the job's lustre
+  mock_job_utilization_from_remote = _jobs1b_get_job_utilization_from_remote;
+  _create_licenses1();
+  _init_job_list();
+  // time_t now = time(NULL);
+  time_t now = 0;
+  job_precursor_t prec = {101, 100, 3000, 10, JOB_PENDING, -1};
+  job_record_t *job_ptr = _create_job(&prec, 0);
+  _add_job(job_ptr);
+  lic_tracker_p lt = init_lic_tracker(60);
+  utracker_int_t ut = _ut_from_lt(lt, "lustre");
+  TEST_ASSERT_NOT_NULL_MESSAGE(ut, "lustre tracker must be created");
+  STEP_FUNC(sf, {
+                    {-1, 500},
+                });
+  utracker_int_t expected = _ut_from_step_func(&sf);
+  _assert_ut_match(expected, ut, true, "strict");
+  ut_int_destroy(expected);
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 40, _get_r_target(lt), "R_target calculated properly when one pending job");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 40, _get_r_star(lt), "R_star calculated properly when one pending job");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 40, _get_r_bar(lt), "R_bar calculated properly when one pending job");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(0, _get_r_star_target(lt), "R_star_target calculated properly when one pending job");
+  destroy_lic_tracker(lt);
+}
+
 void test_wa_backfill_licenses_star1() {
   set_wa();
   _create_licenses1();
@@ -1221,5 +1277,7 @@ int main(int argc, char * argv[]) {
   RUN_TEST(test_wa_backfill_licenses_test_job_and_alloc_job_presets);
   RUN_TEST(test_wa_backfill_licenses_overlap);
   RUN_TEST(test_wa_backfill_licenses_star1);
+  RUN_TEST(test_wa_init_lic_tracker_one_pending_job);
+  RUN_TEST(test_wa_init_lic_tracker_one_pending_job_with_lustre);
   return UNITY_END();
 }
