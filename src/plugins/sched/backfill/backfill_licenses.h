@@ -35,6 +35,13 @@ backfill_licenses_config_t configure_backfill_licenses(
 
 int configure_total_node_count(int config);
 
+/**
+ * Sets the internal filename to the provided value and returns the previous value of the parameter.
+ * NOTE: the caller is responsible fo destrying the returned string.
+ * The function gets the ownership of the provided string until it is reset.
+*/
+char *configure_lustre_log_filename(char *filename);
+
 lic_tracker_p init_lic_tracker(int resolution);
 
 void destroy_lic_tracker(lic_tracker_p);

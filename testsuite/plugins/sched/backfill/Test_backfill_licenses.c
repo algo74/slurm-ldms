@@ -428,6 +428,36 @@ int _jobs1b_get_job_utilization_from_remote(job_record_t *job_ptr,
   }
 }
 
+int _jobs2a_get_job_utilization_from_remote(job_record_t *job_ptr,
+                                            remote_estimates_t *results)
+{
+  switch (job_ptr->job_id) {
+    case 4:
+      results->lustre = 200;
+      results->timelimit = 12;
+      return 1;
+    case 5:
+      results->lustre = 300;
+      results->timelimit = 14;
+      return 1;
+    case 6:
+      results->lustre = 400;
+      results->timelimit = 16;
+      return 1;
+    case 101:
+      results->lustre = 400;
+      results->timelimit = 18;
+      return 1;
+    case 102:
+      results->lustre = 1400;
+      results->timelimit = 20;
+      return 1;
+    default:
+      results->timelimit = 10;
+      return 2;
+  }
+}
+
 /**
  * Creats a list with only "lustre" license
 */
@@ -1240,6 +1270,177 @@ void test_wa_backfill_licenses_star1() {
   destroy_lic_tracker(lt);
 }
 
+void test_wa_backfill_licenses_star2()
+{
+  set_wa();
+  mock_job_utilization_from_remote = _jobs2a_get_job_utilization_from_remote;
+  _create_licenses1();
+  _init_job_list();
+  _add_jobs(COUNT_OF(jobs2), jobs2, 0);
+  /* no pending jobs */
+  lic_tracker_p lt = init_lic_tracker(60);
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 17.0769, _get_r_target(lt), "R_target calculated properly when no pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 0, _get_r_star(lt), "R_star calculated properly when no pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 0, _get_r_bar(lt), "R_bar calculated properly when no pending jobs");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(1000, _get_r_star_target(lt), "R_star_target calculated properly when no pending jobs");
+  {
+    utracker_int_t st = _get_star_tracker(lt);
+    STEP_FUNC(sf, {
+                      {-1, 500},
+                      {12060, 400},
+                      {12240, 300},
+                      {12360, 0},
+                  });
+    utracker_int_t expected = _ut_from_step_func(&sf);
+    _assert_ut_match(expected, st, true, "strict");
+    ut_int_destroy(expected);
+    /* now test backfill licenses */
+    /* first job */
+    job_precursor_t prec = {101, 100, 3000, 10, JOB_PENDING, -1};
+    job_record_t *job_ptr = _create_job(&prec, 0);
+    remote_estimates_t estimates = {0, 300};
+    time_t when = 10000;
+    int rc = backfill_licenses_test_job(lt, job_ptr, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10000, when, "first job can start right away");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    backfill_licenses_alloc_job(lt, job_ptr, &estimates, when, when + 10 * 60);
+    /* second job */
+    job_precursor_t prec2 = {102, 100, 3000, 10, JOB_PENDING, -1};
+    job_record_t *job_ptr2 = _create_job(&prec2, 0);
+    // estimates = {0, 300};
+    // when = 10000;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10620, when, "second \"lustre 300\" job can start after job 101");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    estimates.lustre = 600;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(12060, when, "second \"lustre 600\" job can start after job 4");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    _job_delete(job_ptr);
+    _job_delete(job_ptr2);
+  }
+  destroy_lic_tracker(lt);
+  /* no pending jobs - bigger lustre limit */
+  licenses_t *license = list_peek(license_list);
+  license->total = 10000;
+  lt = init_lic_tracker(60);
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 17.0769, _get_r_target(lt), "R_target calculated properly when no pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 0, _get_r_star(lt), "R_star calculated properly when no pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 0, _get_r_bar(lt), "R_bar calculated properly when no pending jobs");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(10000, _get_r_star_target(lt), "R_star_target calculated properly when no pending jobs");
+  {
+    utracker_int_t st = _get_star_tracker(lt);
+    STEP_FUNC(sf, {
+                      {-1, 500},
+                      {12060, 400},
+                      {12240, 300},
+                      {12360, 0},
+                  });
+    utracker_int_t expected = _ut_from_step_func(&sf);
+    _assert_ut_match(expected, st, true, "strict");
+    ut_int_destroy(expected);
+    /* now test backfill licenses */
+    /* first job */
+    job_precursor_t prec = {101, 100, 3000, 10, JOB_PENDING, -1};
+    job_record_t *job_ptr = _create_job(&prec, 0);
+    remote_estimates_t estimates = {0, 300};
+    time_t when = 10000;
+    int rc = backfill_licenses_test_job(lt, job_ptr, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10000, when, "first job can start right away");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    backfill_licenses_alloc_job(lt, job_ptr, &estimates, when, when + 10 * 60);
+    /* second job */
+    job_precursor_t prec2 = {102, 100, 3000, 10, JOB_PENDING, -1};
+    job_record_t *job_ptr2 = _create_job(&prec2, 0);
+    // estimates = {0, 300};
+    // when = 10000;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10000, when, "with bigger limt, second \"lustre 300\" job can start right away");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    estimates.lustre = 600;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10000, when, "with bigger limt, second \"lustre 600\" job can start right away");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    _job_delete(job_ptr);
+    _job_delete(job_ptr2);
+  }
+  destroy_lic_tracker(lt);
+  /* 30 pending jobs */
+  _add_jobs_several_times(COUNT_OF(jobs_cycle1), jobs_cycle1, 10, 0, 400, 1000);
+  lt = init_lic_tracker(60);
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 16.7755, _get_r_target(lt), "R_target calculated properly with 30 pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 10, _get_r_star(lt), "R_star calculated properly with 30 pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 10, _get_r_bar(lt), "R_bar calculated properly with 30 pending jobs");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(678, _get_r_star_target(lt), "R_star_target calculated properly with 30 pending jobs");
+  destroy_lic_tracker(lt);
+  /* 300 penidng jobs*/
+  _add_jobs_several_times(COUNT_OF(jobs_cycle1), jobs_cycle1, 90, 4000, 400, 1000);
+  lt = init_lic_tracker(60);
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 16.680965, _get_r_target(lt), "R_target calculated properly with 300 pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 10, _get_r_star(lt), "R_star calculated properly with 300 pending jobs");
+  TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(0.0001, 10, _get_r_bar(lt), "R_bar calculated properly with 300 pending jobs");
+  TEST_ASSERT_EQUAL_INT_MESSAGE(668, _get_r_star_target(lt), "R_star_target calculated properly with 300 pending jobs");
+  {
+    utracker_int_t st = _get_star_tracker(lt);
+    STEP_FUNC(sf, {
+                      {-1, 200},
+                      // {12060, 200},
+                      // {12240, 200},
+                      {12360, 0},
+                  });
+    utracker_int_t expected = _ut_from_step_func(&sf);
+    _assert_ut_match(expected, st, true, "strict");
+    ut_int_destroy(expected);
+    /* now test backfill licenses */
+    /* first job */
+    job_precursor_t prec = {101, 100, 3000, 10, JOB_PENDING, -1};
+    job_record_t *job_ptr = _create_job(&prec, 0);
+    remote_estimates_t estimates = {0, 300};
+    time_t when = 10000;
+    int rc = backfill_licenses_test_job(lt, job_ptr, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10000, when, "with penidng jobs, first job can start right away");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    backfill_licenses_alloc_job(lt, job_ptr, &estimates, when, when + 10 * 60);
+    STEP_FUNC(sf1, {
+                       {-1, 200},
+                       {9960, 400},
+                       {10620, 200},
+                       // {12240, 200},
+                       {12360, 0},
+                   });
+    expected = _ut_from_step_func(&sf1);
+    _assert_ut_match(expected, st, true, "strict");
+    ut_int_destroy(expected);
+    /* second job */
+    job_precursor_t prec2 = {102, 100, 3000, 10, JOB_PENDING, -1};
+    job_record_t *job_ptr2 = _create_job(&prec2, 0);
+    // estimates = {0, 300};
+    // when = 10000;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10000, when, "with penidng jobs, second \"lustre 300\" job can start right away");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    estimates.lustre = 600;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10000, when, "with penidng jobs, second \"lustre 600\" job can start right away");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    estimates.lustre = 700;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10620, when, "with penidng jobs, second \"lustre 700\" job can start after job 101");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    estimates.lustre = 3000;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(10620, when, "with penidng jobs, second \"lustre 3000\" job can start after job 101");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    estimates.lustre = 10000;
+    rc = backfill_licenses_test_job(lt, job_ptr2, &estimates, &when);
+    TEST_ASSERT_EQUAL_INT64_MESSAGE(12360, when, "with penidng jobs, second \"lustre 10000\" job can start after all jobs");
+    TEST_ASSERT_EQUAL_INT_MESSAGE(SLURM_SUCCESS, rc, "job can be scheduled");
+    _job_delete(job_ptr);
+    _job_delete(job_ptr2);
+  }
+  destroy_lic_tracker(lt);
+}
+
 int main(int argc, char * argv[]) {
   signal(SIGSEGV, handler);  // install our handler
   log_options_t log_options = {LOG_LEVEL_DEBUG5, LOG_LEVEL_QUIET,
@@ -1277,6 +1478,7 @@ int main(int argc, char * argv[]) {
   RUN_TEST(test_wa_backfill_licenses_test_job_and_alloc_job_presets);
   RUN_TEST(test_wa_backfill_licenses_overlap);
   RUN_TEST(test_wa_backfill_licenses_star1);
+  RUN_TEST(test_wa_backfill_licenses_star2);
   RUN_TEST(test_wa_init_lic_tracker_one_pending_job);
   RUN_TEST(test_wa_init_lic_tracker_one_pending_job_with_lustre);
   return UNITY_END();

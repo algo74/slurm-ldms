@@ -219,3 +219,9 @@ ut_int_dump(utracker_int_t ut) {
   list_for_each(ut, _dump_item, NULL);
   log("--------------------------------");
 }
+
+int ut_get_initial_value(utracker_int_t ut) 
+{
+  ut_int_item_t *head = list_peek(ut);
+  return head->value;
+}

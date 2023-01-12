@@ -79,6 +79,7 @@ static void _two_group_entry_destroy(void *x) {
 
 static backfill_licenses_config_t config_state = BACKFILL_LICENSES_AWARE;
 static int config_total_node_count = -1;
+static char *config_lustre_log_filename = NULL;
 
 backfill_licenses_config_t configure_backfill_licenses(
     backfill_licenses_config_t config) {
@@ -90,6 +91,13 @@ backfill_licenses_config_t configure_backfill_licenses(
 int configure_total_node_count(int config) {
   int old_config = config_total_node_count;
   config_total_node_count = config; 
+  return old_config;
+}
+
+char *configure_lustre_log_filename(char *filename)
+{
+  char *old_config = config_lustre_log_filename;
+  config_lustre_log_filename = filename;
   return old_config;
 }
 
@@ -131,14 +139,14 @@ static uint32_t _license_cnt(List licenses_l, char *name) {
   return count;
 }
 
-uint32_t _get_job_lustre_count(job_record_t *job_ptr) {
-  uint32_t result = _license_cnt(job_ptr->license_list, LUSTRE);
-  if (result != -1) return result;
-  remote_estimates_t estimates;
-  reset_remote_estimates(&estimates);
-  get_job_utilization_from_remote(job_ptr, &estimates);
-  return estimates.lustre;
-}
+// uint32_t _get_job_lustre_count(job_record_t *job_ptr) {
+//   uint32_t result = _license_cnt(job_ptr->license_list, LUSTRE);
+//   if (result != -1) return result;
+//   remote_estimates_t estimates;
+//   reset_remote_estimates(&estimates);
+//   get_job_utilization_from_remote(job_ptr, &estimates);
+//   return estimates.lustre;
+// }
 
 uint32_t _get_job_node_count(job_record_t *job_ptr) {
   uint32_t min_nodes, req_nodes = 0, max_nodes;
@@ -342,11 +350,15 @@ void _setup_two_groups(two_group_entry_t *entry, lt_entry_t *lt_entry, time_t ca
     }
     int nodes_count = _get_job_node_count(tmp_job_ptr);
     debug5("%s: %pJ: node count: %d", __func__, tmp_job_ptr, nodes_count);
-    int lustre_count = _get_job_lustre_count(tmp_job_ptr);
+    remote_estimates_t estimates;
+    reset_remote_estimates(&estimates);
+    get_job_utilization_from_remote(tmp_job_ptr, &estimates);
+    int lustre_count = _license_cnt(tmp_job_ptr->license_list, LUSTRE);
+    if (lustre_count == -1) lustre_count = estimates.lustre;
     debug5("%s: %pJ: lustre count: %d", __func__, tmp_job_ptr, lustre_count);
     double duration_in_min;
     if (IS_JOB_PENDING(tmp_job_ptr)) {
-      duration_in_min = tmp_job_ptr->time_limit;
+      duration_in_min = estimates.timelimit > 0 ? estimates.timelimit : tmp_job_ptr->time_limit;
       // star_job_details[n_pending_jobs].duration_in_min = duration_in_min;
       if (n_pending_jobs < n_jobs) {
         double area = nodes_count * duration_in_min;
@@ -504,6 +516,40 @@ lic_tracker_p init_lic_tracker(int resolution) {
       ut_int_add(lt_entry->ut, res->lustre_offset);
     } else
       error("%s (%d): Not implemented license type", __func__, __LINE__);
+  }
+  // log the information
+  if (config_lustre_log_filename) {
+    FILE *log_file = fopen(config_lustre_log_filename, "a");
+    if (!log_file) {
+      error("%s (%d): cannot open file \"%s\" for logging", __func__, __LINE__, config_lustre_log_filename);
+    } else {
+      int total = 0;
+      int used = 0;
+      int star_used = 0;
+      double r_star = 0;
+      double r_bar = 0;
+      double r_target = 0 ;  // target rate per node
+      int r_star_target = 0;
+      if (res->lustre.type == BACKFILL_LICENSES_AWARE) {
+        lt_entry_t *lt_entry = res->lustre.vp_entry;
+        total = lt_entry->total;
+        used = ut_get_initial_value(lt_entry->ut);
+      } else if (res->lustre.type == BACKFILL_LICENSES_TWO_GROUP) {
+        two_group_entry_t *lt_entry = res->lustre.vp_entry;
+        total = lt_entry->total;
+        used = ut_get_initial_value(lt_entry->ut);
+        star_used = ut_get_initial_value(lt_entry->st);
+        r_star = lt_entry->r_star;
+        r_bar = lt_entry->r_bar;
+        r_target = lt_entry->r_target;
+        r_star_target = lt_entry->r_star_target;
+      } else
+        error("%s (%d): Not implemented license type", __func__, __LINE__);
+      fprintf(log_file, "%ld, %d, %d, %d, %f, %f, %f, %d\n", 
+            now, total, used, star_used, r_star, r_bar, r_target, r_star_target);
+      fclose(log_file);
+    }
+    
   }
 
   return res;

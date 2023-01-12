@@ -66,6 +66,10 @@ int configure_total_node_count(int config) {
   return old;
 }
 
+char *configure_lustre_log_filename(char *config) {
+  return NULL;
+}
+
 static void _clear_server_strings()
 {
   _count_config_vinsnl_server = 0;

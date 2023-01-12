@@ -153,5 +153,15 @@ void backfill_configure()
       error("%s: Config file \"%s\": unknown backfill type (%s): not configured", __func__, filename, backfill_type->valuestring);
     }
   }
+  // configure Lustre log file name
+  char *log_filename_string = NULL;
+  cJSON *log_filename = cJSON_GetObjectItem(config_json, "lustre_log_path");
+  if (log_filename && cJSON_IsString(log_filename)) {
+    log_filename_string = xstrdup(log_filename->valuestring);
+  }
+  char *old_string = configure_lustre_log_filename(log_filename_string);
+  info("%s: Config file \"%s\": changing Lustre log path from \"%s\" to \"%s\"", __func__, filename, old_string, log_filename_string);
+  if (old_string) xfree(old_string);
+
   cJSON_Delete(config_json);
 }

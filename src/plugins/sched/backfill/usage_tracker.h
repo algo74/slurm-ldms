@@ -40,8 +40,13 @@ void ut_int_destroy(utracker_int_t ut);
 void ut_int_dump(utracker_int_t ut);
 
 /**
- * add value to the whole step function
+ * adds the value to the whole step function
  */
 void ut_int_add(utracker_int_t ut, int value);
+
+/**
+ * gets initial value of the step function
+*/
+int ut_get_initial_value(utracker_int_t ut);
 
 #endif /* USAGE_TRACKER_H_ */
