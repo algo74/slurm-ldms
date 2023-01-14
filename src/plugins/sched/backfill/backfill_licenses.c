@@ -587,7 +587,7 @@ int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr,
   // update lustre_value if explicitly set for the job
   int job_lustre_requirement = _license_cnt(job_ptr->license_list, LUSTRE);
   if (job_lustre_requirement == -1) {
-    // using estimate (clipped)
+    // We will use estimate, so we clip it if above total available
     // TODO (AG): refactor this
     if (lustre_value > 0 && lt->lustre.vp_entry) {
       // NOTE: we log later the error

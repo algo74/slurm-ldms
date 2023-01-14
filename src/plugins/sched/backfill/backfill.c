@@ -294,6 +294,9 @@ static void _dump_node_space_table(node_space_map_t *node_space_ptr)
 	char begin_buf[32], end_buf[32], *node_list;
 
 	info("=========================================");
+	node_list = bitmap2node_name(idle_node_bitmap);
+	info("Idle nodes:%s", node_list);
+	xfree(node_list);
 	while (1) {
 		slurm_make_time_str(&node_space_ptr[i].begin_time,
 				    begin_buf, sizeof(begin_buf));
@@ -3046,14 +3049,15 @@ static void _add_reservation(uint32_t start_time, uint32_t end_reserve,
 	int i, j;
 
 #if 1 /*-AG 0 */
-	info("add job start:%u end:%u", start_time, end_reserve);
-	for (j = 0; ; ) {
-		info("node start:%u end:%u",
-		     (uint32_t) node_space[j].begin_time,
-		     (uint32_t) node_space[j].end_time);
+	for (j = 0;;) {
+		info("node start:%u end:%u total: %u",
+				(uint32_t)node_space[j].begin_time,
+				(uint32_t)node_space[j].end_time,
+				(uint32_t)bit_set_count(node_space[j].avail_bitmap));
 		if ((j = node_space[j].next) == 0)
 			break;
 	}
+	info("add job start:%u end:%u total: %u", start_time, end_reserve, (uint32_t)bit_set_count(res_bitmap));
 #endif
 
 	start_time = MAX(start_time, node_space[0].begin_time);

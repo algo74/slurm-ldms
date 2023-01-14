@@ -140,7 +140,7 @@ static void _add_or_update_env_param(job_desc_msg_t *job_desc,
   char *check_str = xstrdup_printf("%s=", param_name);
   int check_len = strlen(check_str);
   for (i = 0; i < envc; i++) {
-    debug3("%s: checking param %i", __func__, i);
+    // debug3("%s: checking param %i", __func__, i);
     if (0 == strncmp(envv[i], check_str, check_len)) {
       // replace parameter
       debug3("%s: freeing envv[%d]: %s", __func__, i, envv[i]);
