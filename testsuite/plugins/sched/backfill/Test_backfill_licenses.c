@@ -18,6 +18,8 @@
 #define COUNT_OF(x) \
   ((sizeof(x) / sizeof(0 [x])) / ((size_t)(!(sizeof(x) % sizeof(0 [x])))))
 
+#define N 1024
+
 /************************************************************
  Mocks
 ************************************************************/
@@ -123,7 +125,6 @@ static utracker_int_t _ut_from_lt(lic_tracker_p lt, char *name) {
 static void _assert_ut_match(utracker_int_t expected, utracker_int_t actual,
                              bool strict, char *comment) {
   // TODO(AG): debug
-  const size_t N = 1024;
   static char message[N + 1];
   xfree(message);
   size_t ie = 0;
