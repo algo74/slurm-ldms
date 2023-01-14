@@ -13,6 +13,8 @@
 #include "src/plugins/sched/backfill/cJSON.h"
 #include "unity.h"
 
+#define N 1023
+
 // INTERNALS
 
 static const char *ENVVAR_FILENAME = "VINSNL_CONFIG";
@@ -75,7 +77,6 @@ static void _clear_server_strings()
 }
 
 static void _assert_server_not_configured(char *prefix) {
-  const size_t N = 1023;
   char buffer[N+1] = {0};
   snprintf(buffer, N, "%s: Server name is not set", prefix);
   TEST_ASSERT_EQUAL_STRING_MESSAGE(NULL, server_name, buffer);
