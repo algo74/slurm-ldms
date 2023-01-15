@@ -2102,7 +2102,7 @@ next_task:
 		 * but the check seems to be broken
 		 */
 
-		// TODO: get fresh estimates
+		// get fresh estimates
 		remote_estimates_t estimates;
 		reset_remote_estimates(&estimates);
 		debug3("AG backfill: getting estimates for %pJ.", job_ptr);
