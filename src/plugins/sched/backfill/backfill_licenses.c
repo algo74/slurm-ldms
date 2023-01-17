@@ -553,7 +553,7 @@ lic_tracker_p init_lic_tracker(int resolution) {
   }
   // correct node offest
   if (node_entry) {
-    ut_int_add(node_entry, used_node_count);
+    ut_int_add(node_entry->ut, used_node_count);
   }
   // log the information
   if (config_lustre_log_filename) {
