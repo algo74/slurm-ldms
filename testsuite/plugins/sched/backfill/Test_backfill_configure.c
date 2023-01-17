@@ -70,6 +70,14 @@ char *configure_lustre_log_filename(char *config) {
   return NULL;
 }
 
+void backfill_config_allow_node_leeway(bool config){
+
+}
+
+void configure_trace_nodes(bool config)
+{
+}
+
 static void _clear_server_strings()
 {
   _count_config_vinsnl_server = 0;

@@ -80,6 +80,7 @@ static void _two_group_entry_destroy(void *x) {
 static backfill_licenses_config_t config_state = BACKFILL_LICENSES_AWARE;
 static int config_total_node_count = -1;
 static char *config_lustre_log_filename = NULL;
+static bool config_trace_nodes = false;
 
 backfill_licenses_config_t configure_backfill_licenses(
     backfill_licenses_config_t config) {
@@ -91,6 +92,12 @@ backfill_licenses_config_t configure_backfill_licenses(
 int configure_total_node_count(int config) {
   int old_config = config_total_node_count;
   config_total_node_count = config; 
+  return old_config;
+}
+
+bool configure_trace_nodes(int config) {
+  bool old_config = config_trace_nodes;
+  config_trace_nodes = config; 
   return old_config;
 }
 
@@ -193,6 +200,11 @@ void dump_lic_tracker(lic_tracker_p lt) {
     debug3("license: %s, total: %d", entry->name, entry->total);
     ut_int_dump(entry->ut);
   }
+  if (lt->node_entry) {
+    entry = lt->node_entry;
+    debug3("nodes total: %d", entry->total);
+    ut_int_dump(entry->ut);
+  }
   list_iterator_destroy(iter);
   if (lt->lustre.type == BACKFILL_LICENSES_AWARE) {
     lt_entry_t *entry = lt->lustre.vp_entry;
@@ -284,6 +296,9 @@ void destroy_lic_tracker(lic_tracker_p lt) {
       _two_group_entry_destroy(lt->lustre.vp_entry);
     } else {
       error("%s (%d): Not implemented license type (%d)", __func__, __LINE__, lt->lustre.type);
+    }
+    if (lt->node_entry) {
+      _lt_entry_destroy(lt->node_entry);
     }
     xfree(lt);
   }
@@ -439,6 +454,7 @@ lic_tracker_p init_lic_tracker(int resolution) {
     res->lustre_offset = 0;
     res->lustre.type = config_state;
     res->lustre.vp_entry = NULL;
+    res->node_entry = NULL;
     iter = list_iterator_create(license_list);
     while ((license_entry = list_next(iter))) {
       lt_entry_t *entry = xmalloc(sizeof(lt_entry_t));
@@ -477,6 +493,16 @@ lic_tracker_p init_lic_tracker(int resolution) {
 
   /*AG TODO: implement reservations */
 
+  /* AG: initializing node entry */
+  lt_entry_t *node_entry = NULL; // node entry is null if we do not track nodes
+  int used_node_count = 0;
+  if (config_trace_nodes) {
+    node_entry = xmalloc(sizeof(lt_entry_t)); 
+    res->node_entry = node_entry;
+    node_entry->total = _get_total_nodes_count();
+    node_entry->ut = ut_int_create(0);  // we will update the initial value later
+  }
+
   /* process running jobs */
   if (!job_list) {
     return res;
@@ -502,8 +528,16 @@ lic_tracker_p init_lic_tracker(int resolution) {
     if (tmp_job_ptr->license_list == NULL && estimates.lustre == 0) {
       debug3("%s: %pJ has no licenses -- skipping", __func__, tmp_job_ptr);
       continue;
-    }
+    } 
+    // process licenses, but not the node_entry
     _lt_process_running_job(res, tmp_job_ptr, &estimates);
+    // process the node count
+    if (node_entry) {
+      int job_node_count = _get_job_node_count(tmp_job_ptr);
+      time_t t = _convert_time_fwd(tmp_job_ptr->end_time, res->resolution);
+      ut_int_remove_till_end(node_entry->ut, t, job_node_count);
+      used_node_count += job_node_count;
+    }
   }
   list_iterator_destroy(job_iterator);
   // correct lustre offest
@@ -516,6 +550,10 @@ lic_tracker_p init_lic_tracker(int resolution) {
       ut_int_add(lt_entry->ut, res->lustre_offset);
     } else
       error("%s (%d): Not implemented license type", __func__, __LINE__);
+  }
+  // correct node offest
+  if (node_entry) {
+    ut_int_add(node_entry, used_node_count);
   }
   // log the information
   if (config_lustre_log_filename) {
@@ -555,11 +593,11 @@ lic_tracker_p init_lic_tracker(int resolution) {
   return res;
 }
 
-// TODO
 int backfill_licenses_overlap(lic_tracker_p lt, job_record_t *job_ptr,
-                              remote_estimates_t *estimates, time_t when) {
+                              remote_estimates_t *estimates, time_t when) 
+{
   time_t check = when;
-  backfill_licenses_test_job(lt, job_ptr, estimates, &check);  // TODO
+  backfill_licenses_test_job(lt, job_ptr, estimates, &check); 
   int res = check != when;
   if (res) {
     debug3("%s: %pJ overlaps; scheduled: %ld, allowed: %ld", __func__, job_ptr,
@@ -660,7 +698,31 @@ int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr,
         }
       }
     }
-    debug5("%s: %pJ: done with \"other\" licenses, moving to lustre", __func__,
+    debug5("%s: %pJ: done with \"other\" licenses, moving to node count", __func__,
+           job_ptr);
+    if (status != ERROR && status != RESET && lt->node_entry) {
+      lt_entry_t *node_entry = lt->node_entry;
+      int job_node_count = _get_job_node_count(job_ptr);
+      curr_start =
+          ut_int_when_below(node_entry->ut, prev_start, duration,
+                            node_entry->total - job_node_count + 1);
+      if (curr_start == -1) {
+        error("%s: Job %pJ will never get %d nodes", __func__,
+              job_ptr, job_node_count);
+        status = ERROR;
+        rc = SLURM_ERROR;
+        break; // NOTE: "continue" should also work here
+      }
+      if (status == FIRST_TIME) {
+        prev_start = curr_start;
+        status = CONTINUE;
+      } else if (curr_start > prev_start) {
+        prev_start = curr_start;
+        status = RESET;
+        continue;
+      }
+    }
+    debug5("%s: %pJ: done with \"other\" licenses (and nodes), moving to lustre", __func__,
            job_ptr);
     if (status != ERROR && status != RESET && lustre_value > 0) {
       if (!lt->lustre.vp_entry) {
@@ -670,7 +732,7 @@ int backfill_licenses_test_job(lic_tracker_p lt, job_record_t *job_ptr,
             __func__, job_ptr);
         rc = SLURM_ERROR;
         status = ERROR;
-        continue;
+        continue; // NOTE: break should also work here
       }
       utracker_int_t ut = NULL;
       int total = -1;
@@ -781,6 +843,11 @@ int backfill_licenses_alloc_job(lic_tracker_p lt, job_record_t *job_ptr,
       }
     }
     list_iterator_destroy(j_iter);
+  }
+
+  if (lt->node_entry) {
+    lt_entry = lt->node_entry;
+    ut_int_add_usage(lt_entry->ut, start, end, _get_total_nodes_count(job_ptr));
   }
 
   if (lustre_value > 0) {

@@ -93,7 +93,8 @@ $(PATHO)override.oo:: $(PATHT)override.c $(PATHT)override_internal.h
 $(PATHO)Test_%.o:: $(PATHT)Test_%.c $$(wildcard $(PATHS)%.h)
 	$(COMPILE) $(CFLAGS) $< -o $@
 
-$(PATHO)%.o:: $(PATHS)%.c $(PATHS)%.h $(PATHT)override.h
+.SECONDEXPANSION:
+$(PATHO)%.o:: $(PATHS)%.c $$(wildcard $(PATHS)%.h) $(PATHT)override.h
 	$(COMPILE)  -include override.h $(CFLAGS) $< -o $@
 
 $(PATHO)%.o:: $(PATHU)%.c $(PATHU)%.h

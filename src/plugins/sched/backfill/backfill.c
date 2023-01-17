@@ -208,6 +208,8 @@ static int yield_sleep   = YIELD_SLEEP;
 static List pack_job_list = NULL;
 static xhash_t *user_usage_map = NULL; /* look up user usage when no assoc */
 
+static bool config_allow_node_leeway = false;
+
 /*********************** local functions *********************/
 static void _add_reservation(uint32_t start_time, uint32_t end_reserve,
 			     bitstr_t *res_bitmap,
@@ -926,6 +928,10 @@ extern void backfill_reconfig(void)
 	slurm_mutex_unlock(&config_lock);
 }
 
+extern void backfill_config_allow_node_leeway(bool value) {
+	config_allow_node_leeway = value;
+}
+
 /* Update backfill scheduling statistics
  * IN tv1 - start time
  * IN tv2 - end (current) time
@@ -1543,10 +1549,12 @@ static int _attempt_backfill(void)
 	assoc_mgr_lock_t qos_read_lock =
 		{ NO_LOCK, NO_LOCK, READ_LOCK, NO_LOCK,
 		  NO_LOCK, NO_LOCK, NO_LOCK };
+	/* AG added */
+	bool been_delayed_by_nodes_features = false;
 
 	bf_sleep_usec = 0;
 	job_start_cnt = 0;
-
+	
 	if (!fed_mgr_sibs_synced()) {
 		info("backfill: %s returning, federation siblings not synced yet",
 		     __func__);
@@ -1649,6 +1657,7 @@ static int _attempt_backfill(void)
 		part_ptr         = job_queue_rec->part_ptr;
 		bf_job_priority  = job_queue_rec->priority;
 		bf_array_task_id = job_queue_rec->array_task_id;
+		been_delayed_by_nodes_features = false;
 
 		job_queue_rec_prom_resv(job_queue_rec);
 		job_queue_rec_del(job_queue_rec);
@@ -2145,6 +2154,9 @@ next_task:
         debug3("  backfill: times from tests for %pJ: license: %s, nodes: %s.",
                                    job_ptr,  begin_buf2,  begin_buf);
       };
+			if (start_lic < start_res) {
+				been_delayed_by_nodes_features = true;
+			}
 		} while(start_lic != start_res);
 		if (start_res > now)
 			end_time = (time_limit * 60) + start_res;
@@ -2789,8 +2801,11 @@ skip_start:
 			job_ptr->sched_nodes = bitmap2node_name(avail_bitmap);
 		}
 		bit_not(avail_bitmap);
-		if ((!bf_one_resv_per_job || !orig_start_time) &&
-		    !(job_ptr->bit_flags & JOB_PROM)) {
+		/* AG NOTE: with node tracking add reservation only if _test_sched returned larger time.
+		 * Oterwise, only update the node resource tracker.
+		 */
+		if ((!config_allow_node_leeway || been_delayed_by_nodes_features) && 
+				((!bf_one_resv_per_job || !orig_start_time) && !(job_ptr->bit_flags & JOB_PROM))) {
 			_add_reservation(start_time, end_reserve, avail_bitmap,
 					 node_space, &node_space_recs);
 		}

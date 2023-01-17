@@ -24,6 +24,7 @@ typedef struct lic_tracker_struct {
     backfill_licenses_config_t type;
     void *vp_entry;  // any type of tracking entry
   } lustre; 
+  void *node_entry; // to track overall nodes
   int resolution;
   int lustre_offset;
 } lic_tracker_t;
@@ -41,6 +42,8 @@ int configure_total_node_count(int config);
  * The function gets the ownership of the provided string until it is reset.
 */
 char *configure_lustre_log_filename(char *filename);
+
+bool configure_trace_nodes(int config);
 
 lic_tracker_p init_lic_tracker(int resolution);
 

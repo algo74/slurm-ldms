@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 
 #include "backfill_licenses.h"
+#include "backfill.h"
 #include "cJSON.h"
 #include "remote_estimates.h"
 #include "src/common/log.h"
@@ -14,6 +15,18 @@ enum { MAX_INT_STRING = ((CHAR_BIT * sizeof(int)) / 3 + 2) };
 
 static time_t last_config_time = 0;
 static bool been_read_config = false;
+
+static void _disable_track_nodes() 
+{
+  backfill_config_allow_node_leeway(false);
+  configure_trace_nodes(false);
+}
+
+static void _enable_track_nodes() 
+{
+  backfill_config_allow_node_leeway(true);
+  configure_trace_nodes(true);
+}
 
 void backfill_configure()
 {
@@ -162,6 +175,24 @@ void backfill_configure()
   char *old_string = configure_lustre_log_filename(log_filename_string);
   info("%s: Config file \"%s\": changing Lustre log path from \"%s\" to \"%s\"", __func__, filename, old_string, log_filename_string);
   if (old_string) xfree(old_string);
+
+  // configure node tracking
+  cJSON *track_nodes = cJSON_GetObjectItem(config_json, "track_nodes");
+  if (!track_nodes) {
+    info("%s: Config file \"%s\" missing track nodes option: disabled", __func__, filename);
+    _disable_track_nodes();
+  } else if (cJSON_IsBool(track_nodes)) {
+    if (cJSON_IsTrue(track_nodes)) {
+      info("%s: Config file \"%s\" enabling node track mode", __func__, filename);
+      _enable_track_nodes();
+    } else {
+      info("%s: Config file \"%s\" disabling node track mode", __func__, filename);
+      _disable_track_nodes();
+    }
+  } else {
+    info("%s: Config file \"%s\" track nodes option not understood: disabled", __func__, filename);
+    _enable_track_nodes();
+  }
 
   cJSON_Delete(config_json);
 }
