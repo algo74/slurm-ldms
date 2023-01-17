@@ -847,7 +847,7 @@ int backfill_licenses_alloc_job(lic_tracker_p lt, job_record_t *job_ptr,
 
   if (lt->node_entry) {
     lt_entry = lt->node_entry;
-    ut_int_add_usage(lt_entry->ut, start, end, _get_total_nodes_count(job_ptr));
+    ut_int_add_usage(lt_entry->ut, start, end, _get_job_node_count(job_ptr));
   }
 
   if (lustre_value > 0) {
