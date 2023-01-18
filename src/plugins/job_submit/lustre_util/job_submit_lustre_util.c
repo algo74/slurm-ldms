@@ -80,6 +80,7 @@ static pthread_mutex_t lustre_util_thread_flag_mutex = PTHREAD_MUTEX_INITIALIZER
 static const char *VARIETY_ID_ENV_NAME = "LDMS_VARIETY_ID";
 // static const char *REMOTE_SERVER_ENV_NAME = "VINSNL_SERVER";
 // static const char *REMOTE_SERVER_STRING = "127.0.0.1:9999";
+static pthread_mutex_t sockfd_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int sockfd = -1;
 // static char *variety_id_server = NULL;
 // static char *variety_id_port = NULL;
@@ -173,10 +174,12 @@ static void _add_or_update_env_param(job_desc_msg_t *job_desc,
  */
 static cJSON *_send_receive(cJSON *request)
 {
+  slurm_mutex_lock(&sockfd_mutex);
   int tries = 0;
   const int max_tries = 3;
 RETRY:
   if (++tries > max_tries) {
+    slurm_mutex_unlock(&sockfd_mutex);
     error("%s: tried %d times and gave up", __func__, max_tries);
     cJSON_Delete(request);
     return NULL;
@@ -188,9 +191,10 @@ RETRY:
     update_and_get_server_address(&variety_id_server, &variety_id_port);
     if (!variety_id_port || !variety_id_server) {
       debug3("%s: variety id server disabled (host: %s, port: %s)", __func__, variety_id_server, variety_id_port);
-      cJSON_Delete(request);
       if (variety_id_port) xfree(variety_id_port);
       if (variety_id_server) xfree(variety_id_server);
+      slurm_mutex_unlock(&sockfd_mutex);
+      cJSON_Delete(request);
       return NULL;
     }
     debug3("%s: connecting to host: %s, port: %s", __func__, variety_id_server, variety_id_port);
@@ -199,6 +203,7 @@ RETRY:
     xfree(variety_id_server);
   }
   if (sockfd <= 0) {
+    slurm_mutex_unlock(&sockfd_mutex);
     error("%s: could not connect to the server for job_submit", __func__);
     cJSON_Delete(request);
     return NULL;
@@ -211,6 +216,7 @@ RETRY:
     sockfd = -1;
     goto RETRY;
   }
+  slurm_mutex_unlock(&sockfd_mutex);
   cJSON_Delete(request);
   return resp;
 }
