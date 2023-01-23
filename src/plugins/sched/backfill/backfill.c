@@ -180,7 +180,8 @@ static pthread_mutex_t term_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  term_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t config_lock = PTHREAD_MUTEX_INITIALIZER;
 static bool config_flag = false;
-static uint64_t debug_flags = ~0;
+static uint64_t debug_flags = 0;
+// static uint64_t debug_flags = ~0; // AG: to force all debug messages
 static int backfill_interval = BACKFILL_INTERVAL;
 static int bf_max_time = BACKFILL_INTERVAL;
 static int backfill_resolution = BACKFILL_RESOLUTION;
@@ -650,7 +651,8 @@ static void _load_config(void)
 	char *sched_params, *tmp_ptr;
 
 	sched_params = slurm_get_sched_params();
-	debug_flags  = ~0 /*slurm_get_debug_flags()*/;
+	debug_flags  = slurm_get_debug_flags();
+	// debug_flags  = ~0; // AG: to force all debug messages
 
 	if ((tmp_ptr = xstrcasestr(sched_params, "bf_interval="))) {
 		backfill_interval = atoi(tmp_ptr + 12);
