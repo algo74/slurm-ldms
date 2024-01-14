@@ -256,7 +256,15 @@ static void _lt_return_lustre(lic_tracker_p lt, int lustre_value,
     error("%s (%d): Not implemented license type (%d)", __func__, __LINE__, lt->lustre.type);
 }
 
-// "returns" licenses used by the job to the license tracker
+/**
+ *  "returns" licenses used by the job to the license tracker
+ * IN job_ptr - job record
+ * IN estimates - remote estimates for the job
+ * IN/OUT lt - license tracker
+ *             Modified: licenses will be returned
+ *                       lustre_offset will be updated if estimates are used
+ * NOTE: the function assumes that the job is running
+ */
 static void _lt_process_running_job(lic_tracker_p lt, job_record_t *job_ptr,
                                     remote_estimates_t *estimates) {
   /*AG TODO: implement reservations */
@@ -445,7 +453,7 @@ lic_tracker_p init_lic_tracker(int resolution) {
 
   time_t now = time(NULL);
 
-  /* init licenses tracker */
+  /* create licenses tracker and set initial parameters (before processing running jobs) */
   slurm_mutex_lock(&license_mutex);
   if (license_list) {
     res = xmalloc(sizeof(lic_tracker_t));
@@ -470,6 +478,10 @@ lic_tracker_p init_lic_tracker(int resolution) {
       }
       entry->ut = ut_int_create(start_value);
       if (xstrcmp(entry->name, LUSTRE) == 0) {
+        // if we corrected the lustre "used" value, we reduce the offset (make it negative)
+        // so that we do not overcorrect later the effect of the estimated jobs requrement
+        res->lustre_offset = (int)license_entry->used - (int)start_value;
+        // set up lustre entry  
         if (res->lustre.type == BACKFILL_LICENSES_TWO_GROUP) {
           two_group_entry_t *entry2 = xmalloc(sizeof(two_group_entry_t));
           _setup_two_groups(entry2, entry, now);
@@ -481,8 +493,8 @@ lic_tracker_p init_lic_tracker(int resolution) {
         } else {
           res->lustre.vp_entry = entry;
         }
-        res->lustre_offset = (int)start_value - (int)license_entry->used;
       } else {
+        // for all licenses that are not "lustre"
         list_push(res->other_licenses, entry);
       }
     }
@@ -491,13 +503,14 @@ lic_tracker_p init_lic_tracker(int resolution) {
   slurm_mutex_unlock(&license_mutex);
 
   if (!res) return NULL; // if we have no license tracker by now, no reason to continue
+  // FIXME: what about tracking nodes?
 
 
   /*AG TODO: implement reservations */
 
   /* AG: initializing node entry */
   lt_entry_t *node_entry = NULL; // node entry is null if we do not track nodes
-  int used_node_count = 0;
+  int used_node_count = 0;  // to calculate the count of nodes used by running jobs
   if (config_trace_nodes) {
     node_entry = xmalloc(sizeof(lt_entry_t)); 
     res->node_entry = node_entry;
@@ -527,12 +540,7 @@ lic_tracker_p init_lic_tracker(int resolution) {
     remote_estimates_t estimates;
     reset_remote_estimates(&estimates);
     get_job_utilization_from_remote(tmp_job_ptr, &estimates);
-    if (tmp_job_ptr->license_list == NULL && estimates.lustre == 0) {
-      debug3("%s: %pJ has no licenses -- skipping", __func__, tmp_job_ptr);
-      continue;
-    } 
-    // process licenses, but not the node_entry
-    _lt_process_running_job(res, tmp_job_ptr, &estimates);
+
     // process the node count
     if (node_entry) {
       int job_node_count = _get_job_node_count(tmp_job_ptr);
@@ -540,8 +548,17 @@ lic_tracker_p init_lic_tracker(int resolution) {
       ut_int_remove_till_end(node_entry->ut, t, job_node_count);
       used_node_count += job_node_count;
     }
+
+    // process licenses
+    if (tmp_job_ptr->license_list == NULL && estimates.lustre == 0) {
+      debug3("%s: %pJ has no licenses -- skipping", __func__, tmp_job_ptr);
+      continue;
+    } 
+    // return licenses used by the job
+    _lt_process_running_job(res, tmp_job_ptr, &estimates);
   }
   list_iterator_destroy(job_iterator);
+
   // correct lustre offest
   if (res->lustre_offset > 0) {
     if (res->lustre.type == BACKFILL_LICENSES_AWARE) {
