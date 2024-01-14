@@ -1,19 +1,19 @@
 Options and their effect
 =========================
 
-REMOTE_ESTIMATES_ENABLED
+REMOTE_ESTIMATES_ENABLED (probably default)
 ------------------------
 
 - Obtain estimates from remote
 
-REMOTE_ESTIMATES_DISABLED
+REMOTE_ESTIMATES_DISABLED (probably not implemented)
 -------------------------
 
 - Ignore estimate requests
   - return unmodified (must be zeros)
 > TODO: correlate with job_submit plugin
 
-BACKFILL_LICENSES_AWARE
+BACKFILL_LICENSES_AWARE (default)
 ------------------------
 
 - Enforce limits on licenses
@@ -29,6 +29,28 @@ BACKFILL_LICENSES_TWO_GROUP
   - Clip estimates
 - Determine R_star and R_bar
 - Enforce R_prime "target"
+
+
+HOWTO IMPLEMENT DIFFERENT SCHDULING STRATEGIES
+==============================================
+
+Baseline
+--------
+
+- Configure "Analytical Services" to return zero estimates and zero current usage
+- Configure "Backfill" to be "Aware"
+
+I/O Aware
+---------
+
+- Configure "Analytical Services" to return non-zero estimates and current usage
+- Configure "Backfill" to be "Aware"
+
+Workload-adaptive
+-----------------
+
+- Configure "Analytical Services" to return non-zero estimates and current usage
+- Configure "Backfill" to be "Two-group"
 
 
 NOTES and TODOS

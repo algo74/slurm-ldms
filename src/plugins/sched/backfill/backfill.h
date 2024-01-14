@@ -50,6 +50,10 @@ extern void stop_backfill_agent(void);
 /* Note that slurm.conf has changed */
 extern void backfill_reconfig(void);
 
+/**
+ * NOTE: Node leeway is the option to allow backfill reserve only the number of nodes
+ * but not the exact set of nodes. This is useful to reduce fragmentation.
+*/
 void backfill_config_allow_node_leeway(bool value);
 
 #endif	/* _SLURM_BACKFILL_H */

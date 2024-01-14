@@ -14,8 +14,9 @@
 #include "remote_estimates.h"
 
 typedef enum {
+  // NOTE: original backfill is not iplemented directly; it can be emulated by using "zero" predictions
   BACKFILL_LICENSES_AWARE, 
-  BACKFILL_LICENSES_TWO_GROUP // workload-adaptive
+  BACKFILL_LICENSES_TWO_GROUP // workload-adaptive implementation uses this
 } backfill_licenses_config_t;
 
 typedef struct lic_tracker_struct {
@@ -31,6 +32,10 @@ typedef struct lic_tracker_struct {
 
 typedef lic_tracker_t *lic_tracker_p;
 
+/**
+ * Sets the internal backfill licenses configuration to the provided value and returns the previous value of the parameter.
+ * See backfill_licenses_config_t for possible values.
+*/
 backfill_licenses_config_t configure_backfill_licenses(
     backfill_licenses_config_t config);
 
@@ -43,8 +48,18 @@ int configure_total_node_count(int config);
 */
 char *configure_lustre_log_filename(char *filename);
 
+/**
+ * Sets the "trace nodes" flag to the provided value and returns the previous value of the parameter.
+ * NOTE: "trace nodes" option enables the tracking of nodes same way as licenses.
+ *       It is needed if "node leeway" is used in the main backfill algorithm.
+*/
 bool configure_trace_nodes(int config);
 
+/**
+ * Creates and initializes a new license tracker.
+ * IN resolution - the time resolution of the tracker in seconds
+ * RET: the new tracker, owned by the caller (must be destroyed with destroy_lic_tracker)
+*/
 lic_tracker_p init_lic_tracker(int resolution);
 
 void destroy_lic_tracker(lic_tracker_p);
