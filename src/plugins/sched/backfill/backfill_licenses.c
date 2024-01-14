@@ -461,6 +461,8 @@ lic_tracker_p init_lic_tracker(int resolution) {
       entry->name = xstrdup(license_entry->name);
       entry->total = license_entry->total;
       int start_value;
+      debug3("%s: LIC: %s, Internal: %d, External: %d, Total: %d", __func__,
+             entry->name, license_entry->used, license_entry->r_used, entry->total);
       if (license_entry->used < license_entry->r_used) {
         start_value = license_entry->r_used;
       } else {
