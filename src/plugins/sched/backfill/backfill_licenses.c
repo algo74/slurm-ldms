@@ -367,8 +367,10 @@ void _setup_two_groups(two_group_entry_t *entry, lt_entry_t *lt_entry, time_t ca
   int used_lustre_count = 0;
   for ( ; tmp_job_ptr; tmp_job_ptr = list_next(job_iterator)) {
     if (!IS_JOB_RUNNING(tmp_job_ptr) && 
-        !IS_JOB_SUSPENDED(tmp_job_ptr) &&
-        !IS_JOB_PENDING(tmp_job_ptr)) {  // TODO: figure out if suspended jobs are appropriate
+        // !IS_JOB_SUSPENDED(tmp_job_ptr) &&
+        !IS_JOB_PENDING(tmp_job_ptr)) {  
+      // Consider only running and pending jobs
+      // TODO: figure out if suspended jobs are appropriate
       continue;
     }
     int nodes_count = _get_job_node_count(tmp_job_ptr);
@@ -381,9 +383,10 @@ void _setup_two_groups(two_group_entry_t *entry, lt_entry_t *lt_entry, time_t ca
     debug5("%s: %pJ: lustre count: %d", __func__, tmp_job_ptr, lustre_count);
     double duration_in_min;
     if (IS_JOB_PENDING(tmp_job_ptr)) {
-      duration_in_min = estimates.timelimit > 0 ? estimates.timelimit : tmp_job_ptr->time_limit;
+      duration_in_min = (estimates.timelimit > 0 && estimates.timelimit < tmp_job_ptr->time_limit) ? 
+          estimates.timelimit : tmp_job_ptr->time_limit;
       // star_job_details[n_pending_jobs].duration_in_min = duration_in_min;
-      if (n_pending_jobs < n_jobs) {
+      if (n_pending_jobs < n_jobs) {  // need to check because new jobs may arrive and we do not have enough space for all
         double area = nodes_count * duration_in_min;
         pending_area += area;
         star_job_details[n_pending_jobs].area = area;
@@ -395,8 +398,12 @@ void _setup_two_groups(two_group_entry_t *entry, lt_entry_t *lt_entry, time_t ca
       } else {
         error("%s: number of pending jobs is more than anticipated (%zu), job %pJ dropped", __func__, n_jobs, tmp_job_ptr);
       }
-    } else {
+    } else { // running job
       duration_in_min = (double)(tmp_job_ptr->end_time - call_time) / 60.0;
+      // adjust duration if the job was estimated to run less than its time limit
+      if (estimates.timelimit > 0 && estimates.timelimit < tmp_job_ptr->time_limit) {
+        duration_in_min -= tmp_job_ptr->time_limit - estimates.timelimit;
+      }
       used_lustre_count += lustre_count;
       used_nodes_count += nodes_count;
     }
@@ -452,6 +459,8 @@ lic_tracker_p init_lic_tracker(int resolution) {
   job_record_t *tmp_job_ptr;
 
   time_t now = time(NULL);
+
+  // clear_remote_estimate_cache();  // The cache is cleared before the scheduling round in _attempt_backfill
 
   /* create licenses tracker and set initial parameters (before processing running jobs) */
   slurm_mutex_lock(&license_mutex);

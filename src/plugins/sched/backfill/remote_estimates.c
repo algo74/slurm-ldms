@@ -15,6 +15,93 @@ static int sockfd = -1;
 static char *variety_id_server = NULL;
 static char *variety_id_port = NULL;
 
+
+/*********************  Cache for requests */
+
+#define MAX_REQUEST_CACHE_SIZE 10;
+
+typedef struct cache_entry_s cache_entry_t;
+
+struct cache_entry_s {
+  char *variety_id;
+  int return_code;
+  remote_estimates_t estimates;
+  cache_entry_t *next;
+  cache_entry_t *prev;
+};
+
+static struct {
+  cache_entry_t cache[MAX_REQUEST_CACHE_SIZE] = {0};
+  int cache_size = 0;
+  cache_entry_t *head = NULL;
+  cache_entry_t *tail = NULL;
+} request_cache;
+
+static void _cache_clear() {
+  for (size_t i = 0; i < MAX_REQUEST_CACHE_SIZE; ++i) {
+    cache_entry_t *entry = request_cache + i;
+    xfree(entry->variety_id);
+    entry->variety_id = NULL;
+    // entry->next = NULL;
+  }
+  request_cache.cache_size = 0;
+  request_cache.head = NULL;
+  request_cache.tail = NULL;
+}
+
+static void _cache_add(char *variety_id, int return_code, const remote_estimates_t *estimates) {
+  cache_entry_t *entry;
+  if (request_cache.cache_size == MAX_REQUEST_CACHE_SIZE) {
+    // reuse the oldest entry
+    entry = request_cache.tail;
+    request_cache.tail = entry->prev;
+    request_cache.tail->next = NULL;
+  }  else  {
+    // use new entry
+    cache_entry_t *entry = request_cache.cache + request_cache.cache_size;
+    request_cache.cache_size++;
+  }
+  xfree(entry->variety_id);
+  entry->variety_id = xstrdup(variety_id);
+  entry->return_code = return_code;
+  entry->estimates = *estimates;
+  entry->next = request_cache.head;
+  entry->prev = NULL;
+  if (request_cache.cache_size == 1) {
+    request_cache.tail = entry;
+  } else {
+    request_cache.head->prev = entry;
+  }
+  request_cache.head = entry;
+}
+
+static cache_entry_t *_cache_find(char *variety_id) {
+  cache_entry_t *entry = request_cache.head;
+  while (entry) {
+    if (xstrcmp(entry->variety_id, variety_id) == 0) {
+      // move entry to the head of the list (if not already there)
+      if (entry->prev) {
+        entry->prev->next = entry->next;
+        if (entry->next) {
+          entry->next->prev = entry->prev;
+        } else {
+          request_cache.tail = entry->prev;
+        }
+        entry->prev = NULL;
+        entry->next = request_cache.head;
+        request_cache.head->prev = entry;
+        request_cache.head = entry;
+      }
+      return entry;
+    }
+    entry = entry->next;
+  }
+  return NULL;
+}
+
+/**************** end cache implementation */
+
+
 // /**
 //  * Initializes server name and port configuation
 //  * using the environmental variable or defaults.
@@ -48,6 +135,11 @@ void config_vinsnl_server(char *server, char *port)
   variety_id_port = port ? xstrdup(port) : NULL;
 }
 
+
+void clear_remote_estimate_cache() 
+{
+  _cache_clear();
+}
 
 void reset_connection() 
 // docs in the header
@@ -169,12 +261,19 @@ char *get_variety_id(job_record_t *job_ptr)
  */
 int get_variety_id_utilization_from_remote(char *variety_id, remote_estimates_t *results)
 {
+  cache_entry_t *entry = _cache_find(variety_id);
+  if (entry) {
+    debug5("%s: found entry in cache", __func__);
+    *results = entry->estimates;
+    return entry->return_code;
+  }
   int rc = 3;  // got nothing so far
   debug5("%s: calling _get_job_usage for %s", __func__, variety_id);
   cJSON *utilization = _get_job_usage(variety_id);
   debug5("%s: exited _get_job_usage", __func__);
   if (!utilization) {
     error("%s: Error getting job utilization. Is the server on?", __func__);
+    // TODO: maybe we should give up requesting for a while (until next scheduling iteration)?
     return rc;
   }
 
@@ -227,6 +326,7 @@ int get_variety_id_utilization_from_remote(char *variety_id, remote_estimates_t 
 
   debug5("%s: calling cJSON_Delete", __func__);
   cJSON_Delete(utilization);
+  _cache_add(variety_id, rc, results);
   return rc;
 }
 
