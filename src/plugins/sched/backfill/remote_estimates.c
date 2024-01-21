@@ -18,7 +18,7 @@ static char *variety_id_port = NULL;
 
 /*********************  Cache for requests */
 
-#define MAX_REQUEST_CACHE_SIZE 10;
+#define MAX_REQUEST_CACHE_SIZE 10
 
 typedef struct cache_entry_s cache_entry_t;
 
@@ -31,15 +31,15 @@ struct cache_entry_s {
 };
 
 static struct {
-  cache_entry_t cache[MAX_REQUEST_CACHE_SIZE] = {0};
-  int cache_size = 0;
-  cache_entry_t *head = NULL;
-  cache_entry_t *tail = NULL;
-} request_cache;
+  cache_entry_t cache[MAX_REQUEST_CACHE_SIZE];
+  int cache_size;
+  cache_entry_t *head;
+  cache_entry_t *tail;
+} request_cache = {0};
 
 static void _cache_clear() {
   for (size_t i = 0; i < MAX_REQUEST_CACHE_SIZE; ++i) {
-    cache_entry_t *entry = request_cache + i;
+    cache_entry_t *entry = request_cache.cache + i;
     xfree(entry->variety_id);
     entry->variety_id = NULL;
     // entry->next = NULL;
@@ -58,7 +58,7 @@ static void _cache_add(char *variety_id, int return_code, const remote_estimates
     request_cache.tail->next = NULL;
   }  else  {
     // use new entry
-    cache_entry_t *entry = request_cache.cache + request_cache.cache_size;
+    entry = request_cache.cache + request_cache.cache_size;
     request_cache.cache_size++;
   }
   xfree(entry->variety_id);
