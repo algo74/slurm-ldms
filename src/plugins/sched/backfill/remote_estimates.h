@@ -47,6 +47,12 @@ void config_vinsnl_server(char *server, char *port);
 int get_job_utilization_from_remote(job_record_t *job_ptr, remote_estimates_t *results);
 
 /**
+ * Clears the cache of the remote estimates, etc.
+ *
+ */
+void clear_remote_estimate_cache();
+
+/**
  * Resets the inner state.
  * This function may be only needed for testing.
  */

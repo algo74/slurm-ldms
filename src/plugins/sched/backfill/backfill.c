@@ -1632,6 +1632,8 @@ static int _attempt_backfill(void)
 	/* update configuration if needed */
 	backfill_configure();
 	
+	clear_remote_estimate_cache();
+
 	lic_tracker_p lt = init_lic_tracker(backfill_resolution);
 	dump_lic_tracker(lt);
 

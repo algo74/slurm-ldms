@@ -20,11 +20,13 @@
 cJSON *
 send_receive(int sockfd, cJSON *req)
 {
-  static unsigned int count = 0;
-  static char req_id[ID_LEN+1];
-  static char buff[MAX+1];
+  /* FIXME: count was not thread safe, so it is now always 0; need a better implementation or remove the check */
+  unsigned int count = 0;
+  char req_id[ID_LEN+1];
+  req_id[ID_LEN] = '\0';
+  char buff[MAX+1];
   cJSON *res = NULL;
-  count++;
+  // count++;
   if (req == NULL) {
     fprintf(stderr, "Error: empty request JSON\n");
     //TODO: process error
